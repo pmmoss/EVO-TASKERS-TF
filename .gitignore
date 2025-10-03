@@ -1,0 +1,49 @@
+/**/.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+*.log
+*.env
+# Ignore all Terraform-related files and directories
+**/.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+*.log
+
+# Ignore environment variable files
+*.env
+
+# Ignore any files that may contain secrets
+
+# Allow specific tfvars files to be tracked
+!example.tfvars
+!example.tfvars.json
+
+# Ignore any other sensitive files
+*.key
+*.pem
+*.pfx
+*.crt
+*.cer
+*.enc
+*.jks
+*.p12
+*.p8
+*.asc
+
+# Ignore IDE specific files
+.vscode/
+.idea/
+*.iml
+
+# Ignore OS generated files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*.swn
+*.bak
+*.tmp
+*.temp
+*.~
