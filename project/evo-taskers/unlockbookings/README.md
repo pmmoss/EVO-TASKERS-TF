@@ -2,25 +2,48 @@
 
 This directory contains Terraform configurations for deploying the UnlockBookings application across multiple environments (dev, qa, prod).
 
+## 📁 Directory Structure
+
+```
+unlockbookings/
+├── README.md              ← This file (overview & configuration guide)
+├── DEPLOYMENT-GUIDE.md    ← Detailed deployment procedures
+├── main.tf               ← Shared: Data sources & locals
+├── variables.tf          ← Shared: Variable definitions
+├── outputs.tf           ← Shared: Output definitions
+├── app_service.tf       ← Shared: App Service module (commented out)
+├── function_app.tf      ← Shared: Function App module (active)
+├── dev/
+│   ├── backend.tf       ← Dev-specific backend state
+│   ├── terraform.tfvars ← Dev-specific values
+│   └── *.tf → ../*.tf   ← Symlinks to shared configs
+├── qa/
+│   ├── backend.tf       ← QA-specific backend state
+│   ├── terraform.tfvars ← QA-specific values
+│   └── *.tf → ../*.tf   ← Symlinks to shared configs
+└── prod/
+    ├── backend.tf       ← Prod-specific backend state
+    ├── terraform.tfvars ← Prod-specific values
+    └── *.tf → ../*.tf   ← Symlinks to shared configs
+```
+
 ## 🏗️ Architecture
 
-The UnlockBookings application uses a **two-tier deployment model**:
+### Two-Tier Deployment Model
 
-### Tier 1: Common Infrastructure (Shared)
-Located in `../common/{environment}/`
+**Tier 1: Common Infrastructure** (Shared per environment)
 - Virtual Network & Subnets
 - User-Assigned Managed Identity
 - Key Vault
 - Application Insights
-- Log Analytics
+- Log Analytics Workspace
 - Storage Account
 - Bastion (optional)
 
-### Tier 2: Application Infrastructure (This)
-Located in `./{environment}/`
-- App Service (Linux)
-- Function App (optional)
-- Private Endpoints (optional)
+**Tier 2: Application Infrastructure** (This directory)
+- Function App (Linux .NET 8.0)
+- App Service (optional, currently disabled)
+- Private Endpoints
 - Diagnostic Settings
 
 ```
@@ -32,7 +55,7 @@ Located in `./{environment}/`
 │  • Managed Identity                    │
 │  • Key Vault                           │
 │  • App Insights                        │
-│  • Storage                             │
+│  • Storage Account                     │
 └──────────────┬──────────────────────────┘
                │
                │ Remote State Reference
@@ -41,346 +64,393 @@ Located in `./{environment}/`
 │     UnlockBookings Application          │
 │  (Can be deployed independently)        │
 │                                         │
-│  • App Service (Linux .NET 8.0)        │
-│  • Function App (optional)             │
+│  • Function App (Linux .NET 8.0)       │
+│  • VNet Integrated                     │
+│  • Private Endpoints                   │
 │  • Secure by default                   │
 └─────────────────────────────────────────┘
 ```
 
-## 🔒 Security Features
-
-### Secure by Default
-
-✅ **HTTPS Only** - All traffic enforced over HTTPS  
-✅ **TLS 1.2 Minimum** - Modern encryption standards  
-✅ **FTP Disabled** - No legacy FTP access  
-✅ **Managed Identity** - No credentials in code  
-✅ **VNet Integration** - Outbound traffic through private network  
-✅ **Key Vault Integration** - All secrets stored securely  
-✅ **Application Insights** - Full monitoring and diagnostics  
-✅ **Diagnostic Logging** - All logs sent to Log Analytics  
-
-### Optional (Recommended for Production)
-
-🔐 **Private Endpoints** - Block public access entirely  
-🔐 **Custom Domain** - with managed SSL certificates  
-🔐 **Auto-scaling** - Handle traffic spikes  
-🔐 **Deployment Slots** - Zero-downtime deployments  
-
-## 📁 Directory Structure
-
-```
-unlockbookings/
-├── README.md                    # This file
-├── DEPLOYMENT-GUIDE.md          # Step-by-step deployment guide
-│
-├── dev/                         # Development environment
-│   ├── README.md               # Dev-specific documentation
-│   ├── backend.tf              # Remote state configuration
-│   ├── main.tf                 # Remote state data source & locals
-│   ├── app_service.tf          # App Service configuration
-│   ├── function_app.tf         # Function App (optional, commented out)
-│   ├── variables.tf            # Input variables
-│   ├── outputs.tf              # Output values
-│   └── terraform.tfvars        # Environment-specific values
-│
-├── qa/                          # QA environment (future)
-│   └── ...
-│
-└── prod/                        # Production environment (future)
-    └── ...
-```
-
 ## 🚀 Quick Start
 
-### Prerequisites
-
-1. **Azure CLI** installed and authenticated
-2. **Terraform** v1.5+ installed
-3. **Common infrastructure** deployed (in `../common/dev/`)
-
-### Deploy
+### Deploy to Dev
 
 ```bash
-# 1. Navigate to environment directory
-cd dev
-
-# 2. Initialize Terraform
+cd project/evo-taskers/unlockbookings/dev
 terraform init
-
-# 3. Review the plan
-terraform plan
-
-# 4. Deploy
-terraform apply
-
-# 5. Get the app URL
-terraform output app_service_url
+terraform plan -out=tfplan
+terraform apply tfplan
 ```
 
-**See [DEPLOYMENT-GUIDE.md](./DEPLOYMENT-GUIDE.md) for detailed instructions.**
+### Deploy to QA or Production
 
-## 🔧 Configuration
-
-### Basic App Service
-
-Edit `dev/terraform.tfvars`:
-
-```hcl
-# App Service tier
-app_service_sku       = "B1"     # B1, S1, P1V2, etc.
-app_service_always_on = false    # true for production
-
-# Runtime
-runtime_stack  = "dotnet"
-dotnet_version = "8.0"
-
-# Network security
-enable_private_endpoint = false  # true for production
+```bash
+cd project/evo-taskers/unlockbookings/{qa|prod}
+terraform init
+terraform plan -out=tfplan
+terraform apply tfplan
 ```
 
-### Adding Application Settings
+## 🔑 Key Concepts
+
+### Shared Configuration Files
+
+All `.tf` files are at the root level and shared across environments:
+- **main.tf** - References common infrastructure via remote state
+- **variables.tf** - Defines all variables with defaults
+- **outputs.tf** - Exposes resource information
+- **function_app.tf** - Configures the Function App module
+
+### Environment-Specific Files
+
+Each environment directory contains only:
+- **backend.tf** - Terraform backend state configuration
+- **terraform.tfvars** - Environment-specific variable values
+
+### How It Works
+
+When you run `terraform plan` from `dev/`:
+1. Reads `dev/backend.tf` (state configuration)
+2. Reads `dev/terraform.tfvars` (sets `environment = "dev"`)
+3. Reads symlinked `.tf` files (pointing to shared parent configuration)
+4. Dynamically references `evo-taskers-common-dev.tfstate` based on environment variable
+
+**Note:** Each environment directory contains **symlinks** to the shared `.tf` files at the parent level. This maintains a single source of truth while allowing Terraform to run from each environment directory.
+
+## ⚙️ Configuration
+
+### Environment Variable (Required)
+
+Each environment must set the `environment` variable in `terraform.tfvars`:
 
 ```hcl
-additional_app_settings = {
-  "MyFeatureFlag" = "true"
-  
-  # Reference Key Vault secrets
-  "ConnectionString" = "@Microsoft.KeyVault(SecretUri=https://kv.vault.azure.net/secrets/db/)"
+# dev/terraform.tfvars
+environment = "dev"
+
+# qa/terraform.tfvars
+environment = "qa"
+
+# prod/terraform.tfvars
+environment = "prod"
+```
+
+This variable:
+- ✅ Validated to only allow: `dev`, `qa`, `prod`
+- ✅ Determines which common infrastructure state to reference
+- ✅ Used in resource naming and tagging
+
+### Function App Configuration
+
+Key settings in `terraform.tfvars`:
+
+```hcl
+# SKU Configuration
+function_app_sku         = "P0v3"  # or "EP1" for premium
+function_app_always_on   = false   # Set true for prod
+functions_worker_runtime = "dotnet"
+
+# Network Security
+enable_private_endpoint = true  # Disable public access
+
+# Application Settings
+additional_function_app_settings = {
+  name = "UnlockBookings-Functions"
+  # Add custom settings here
 }
 ```
 
-### Enable Function App
+### Storage Configuration
 
-Uncomment the module in `dev/function_app.tf` and run `terraform apply`.
+#### Default (Access Key - Currently Active)
 
-## 📊 Monitoring
-
-### Application Insights
-
-Automatically configured for:
-- Request/Response tracking
-- Dependency tracking
-- Exception logging
-- Performance metrics
-- Custom telemetry
-
-Access at: Azure Portal → Application Insights → Your App Insights instance
-
-### Diagnostic Logs
-
-All logs sent to Log Analytics:
-- HTTP access logs
-- Console output
-- Application logs
-- Audit logs
-
-View at: App Service → Monitoring → Log Stream
-
-## 🚢 Azure DevOps Deployment
-
-### Pipeline Setup
-
-1. Create service connection in Azure DevOps
-2. Create `azure-pipelines.yml` in your app repo
-3. Configure pipeline to deploy to the App Service
-
-**See [DEPLOYMENT-GUIDE.md](./DEPLOYMENT-GUIDE.md#azure-devops-deployment) for complete pipeline configuration.**
-
-### Example Pipeline
-
-```yaml
-- task: AzureWebApp@1
-  inputs:
-    azureSubscription: 'Your-Service-Connection'
-    appType: 'webAppLinux'
-    appName: '$(appServiceName)'  # From terraform output
-    package: '$(Build.ArtifactStagingDirectory)/**/*.zip'
-    runtimeStack: 'DOTNETCORE|8.0'
-```
-
-## 🔑 Managed Identity Usage
-
-### In Terraform
-
-The user-assigned identity is automatically configured from the common infrastructure:
+The module automatically configures storage using access keys from common infrastructure:
 
 ```hcl
-user_assigned_identity_id        = data.terraform_remote_state.common.outputs.workload_identity_id
-user_assigned_identity_client_id = data.terraform_remote_state.common.outputs.workload_identity_client_id
+# In function_app.tf (automatic)
+storage_account_name       = data.terraform_remote_state.common.outputs.storage_account_name
+storage_account_access_key = data.terraform_remote_state.common.outputs.storage_account_primary_access_key
 ```
 
-### In Application Code
+**Status:** ✅ Working out of the box  
+**Best for:** Dev/QA environments
 
-```csharp
-using Azure.Identity;
+#### Enhanced (Managed Identity - Recommended for Production)
 
-// Automatically uses the assigned managed identity
-var credential = new DefaultAzureCredential();
+For better security, use managed identity instead of access keys:
 
-// Access Key Vault
-var client = new SecretClient(new Uri(keyVaultUri), credential);
-var secret = await client.GetSecretAsync("my-secret");
+```hcl
+# In terraform.tfvars
+additional_function_app_settings = {
+  "AzureWebJobsStorage__accountName" = "stevotaskersprodeus"
+  "AzureWebJobsStorage__credential"  = "managedidentity"
+}
 ```
 
-## 📦 Modules Used
+**Benefits:**
+- 🔐 No storage keys exposed
+- 🔄 Automatic key rotation
+- ✅ Azure AD authentication
+- 📊 Better audit trail
 
-This configuration uses the following modules:
+**Requirements:**
+- Managed identity must have "Storage Blob Data Contributor" role (already configured)
+- Storage account must allow managed identity access
 
-### App Service Module
-- Location: `/modules/app_service/`
-- Purpose: Secure Linux App Service with managed identity
-- [Module README](../../../modules/app_service/README.md)
+#### Custom Storage Accounts
 
-### Function App Module
-- Location: `/modules/function_app/`
-- Purpose: Secure Linux Function App with managed identity
-- [Module README](../../../modules/function_app/README.md)
+If you need additional storage accounts:
 
-### Naming Module
-- Location: `/modules/naming/`
-- Purpose: Consistent Azure resource naming
-- Used automatically by app_service and function_app modules
+```hcl
+additional_function_app_settings = {
+  "CustomStorage__serviceUri" = "https://myappstorage.blob.core.windows.net"
+  "CustomStorage__credential" = "managedidentity"
+}
+```
 
-## 🌍 Environments
+### Storage Bindings
 
-### Development (dev/)
+Configure storage connections for triggers and bindings:
 
-- **Purpose**: Development and testing
-- **SKU**: B1 (Basic)
-- **Always On**: Disabled (cost savings)
-- **Private Endpoint**: Disabled (public access for testing)
-- **Scaling**: Manual
+```hcl
+# Blob Storage
+"BlobStorageConnection__serviceUri" = "https://storage.blob.core.windows.net"
+"BlobStorageConnection__credential" = "managedidentity"
 
-### QA (qa/)
+# Queue Storage
+"QueueStorageConnection__queueServiceUri" = "https://storage.queue.core.windows.net"
+"QueueStorageConnection__credential"      = "managedidentity"
 
-- **Purpose**: Quality assurance and staging
-- **SKU**: S1 (Standard)
-- **Always On**: Enabled
-- **Private Endpoint**: Optional
-- **Scaling**: Manual or auto-scale
+# Table Storage
+"TableStorageConnection__tableServiceUri" = "https://storage.table.core.windows.net"
+"TableStorageConnection__credential"      = "managedidentity"
+```
 
-### Production (prod/)
+## 🔒 Security Features
 
-- **Purpose**: Live production workloads
-- **SKU**: P1V2+ (Premium v2/v3)
-- **Always On**: Enabled
-- **Private Endpoint**: Enabled (recommended)
-- **Scaling**: Auto-scale configured
-- **Deployment Slots**: Enabled for blue/green deployments
+### Network Security
+- ✅ VNet Integration (outbound traffic through VNet)
+- ✅ Private Endpoints (optional, blocks public access)
+- ✅ TLS 1.2 minimum
+- ✅ HTTPS only
+- ✅ FTP disabled
 
-## 🛠️ Troubleshooting
+### Identity & Access
+- ✅ User-Assigned Managed Identity
+- ✅ Azure AD authentication
+- ✅ RBAC on Key Vault and Storage
+- ✅ No hardcoded credentials
 
-### App Won't Start
+### Monitoring & Compliance
+- ✅ Application Insights integration
+- ✅ Diagnostic logs to Log Analytics
+- ✅ Metric collection enabled
+- ✅ Audit trail for all operations
+
+## 🌍 Environment Differences
+
+| Setting | Dev | QA | Production |
+|---------|-----|-----|------------|
+| SKU | P0v3 | P0v3 | EP1 (Premium) |
+| Always On | false | true | true |
+| Private Endpoint | true | true | true (required) |
+| Storage Auth | Access Key | Access Key | Managed Identity (recommended) |
+
+## 📝 Common Tasks
+
+### Change All Environments
+
+Edit shared files at root:
+```bash
+vim unlockbookings/function_app.tf
+# Then apply to each environment
+```
+
+### Change One Environment
+
+Edit that environment's `terraform.tfvars`:
+```bash
+vim unlockbookings/dev/terraform.tfvars
+cd unlockbookings/dev
+terraform apply
+```
+
+### Compare Environments
 
 ```bash
-# View live logs
-az webapp log tail --name <app-name> --resource-group <rg-name>
-
-# Check Application Insights for errors
-# Azure Portal → App Insights → Failures
+diff dev/terraform.tfvars qa/terraform.tfvars
+diff qa/terraform.tfvars prod/terraform.tfvars
 ```
 
-### Can't Access Key Vault
+### Add Environment-Specific Setting
 
-```bash
-# Verify managed identity has access
-cd ../common/dev
-terraform output workload_identity_principal_id
-
-# Check RBAC assignments in Azure Portal
+```hcl
+# In dev/terraform.tfvars
+additional_function_app_settings = {
+  name = "UnlockBookings-Functions"
+  "MyDevOnlySetting" = "dev-value"
+}
 ```
 
-### Deployment Issues
+### Migrate to Managed Identity
 
-1. Verify service principal has Contributor role
-2. Check App Service state in Azure Portal
-3. Verify .zip package is valid
-4. Review Activity Log for detailed errors
+**Step 1: Test in Dev**
+```hcl
+# dev/terraform.tfvars
+additional_function_app_settings = {
+  "AzureWebJobsStorage__accountName" = "stevotaskersdeveus"
+  "AzureWebJobsStorage__credential"  = "managedidentity"
+}
+```
 
-## 📚 Documentation
-
-- **[DEPLOYMENT-GUIDE.md](./DEPLOYMENT-GUIDE.md)** - Complete deployment walkthrough
-- **[dev/README.md](./dev/README.md)** - Development environment details
-- **[../common/dev/README.md](../common/dev/README.md)** - Common infrastructure docs
-
-## 🧹 Clean Up
-
-### Remove App Only
-
+**Step 2: Deploy and Verify**
 ```bash
 cd dev
-terraform destroy
+terraform apply
+# Test function app thoroughly
 ```
 
-This keeps the common infrastructure (VNet, Key Vault, etc.) for other apps.
+**Step 3: Promote to QA, then Production**
 
-### Remove Everything
+## 🔍 Troubleshooting
 
-```bash
-# First remove the app
-cd dev
-terraform destroy
+### Issue: Module Not Found
 
-# Then remove common infrastructure
-cd ../../common/dev
-terraform destroy
+**Cause:** Running from wrong directory  
+**Solution:** Always run from environment directory (`dev/`, `qa/`, `prod/`)
+
+### Issue: Variable Not Defined
+
+**Cause:** Missing `environment` in terraform.tfvars  
+**Solution:** Add `environment = "dev"` to your tfvars
+
+### Issue: Backend Initialization Failed
+
+**Cause:** `backend.tf` not in current directory  
+**Solution:** Ensure you're in environment directory
+
+### Issue: Storage Access Denied
+
+**Cause:** Network or permission issue  
+**Solution:**
+1. Verify VNet integration is enabled
+2. Check subnet has access to storage private endpoint
+3. Confirm managed identity has "Storage Blob Data Contributor" role
+4. Check storage firewall rules
+
+### Issue: Can't Access Common State
+
+**Cause:** Wrong state key or environment value  
+**Solution:**
+1. Verify `environment` variable in tfvars
+2. Check common infrastructure is deployed for that environment
+3. Verify state file exists in Azure Storage
+
+## 📊 State Files
+
+Each environment has separate state files:
+
+```
+Azure Storage Container: tfstate
+├── landing-zone/
+│   ├── evo-taskers-common-dev.tfstate        ← Common infra (dev)
+│   ├── evo-taskers-unlockbookings-dev.tfstate   ← This app (dev)
+│   ├── evo-taskers-common-qa.tfstate         ← Common infra (qa)
+│   ├── evo-taskers-unlockbookings-qa.tfstate    ← This app (qa)
+│   ├── evo-taskers-common-prod.tfstate       ← Common infra (prod)
+│   └── evo-taskers-unlockbookings-prod.tfstate  ← This app (prod)
 ```
 
 ## 🎯 Best Practices
 
+1. ✅ **Run from environment directories** - Always `cd` to `dev/`, `qa/`, or `prod/`
+2. ✅ **Review plans before applying** - Use `terraform plan -out=tfplan`
+3. ✅ **Test in dev first** - Never test changes directly in production
+4. ✅ **Use managed identity in prod** - More secure than access keys
+5. ✅ **Enable private endpoints** - Restrict public access
+6. ✅ **Document custom settings** - Comment why settings exist
+7. ✅ **Keep environments consistent** - Only vary what's necessary
+
+## 🔄 Workflow
+
+### Development → QA → Production
+
+```bash
+# 1. Make changes to shared config
+vim unlockbookings/function_app.tf
+
+# 2. Test in dev
+cd unlockbookings/dev
+terraform plan
+terraform apply tfplan
+
+# 3. Verify in dev
+# Run tests, check logs, validate functionality
+
+# 4. Promote to QA
+cd ../qa
+terraform plan
+terraform apply tfplan
+
+# 5. Verify in QA
+# Run integration tests
+
+# 6. Promote to production
+cd ../prod
+terraform plan
+terraform apply tfplan
+```
+
+## 📚 Additional Resources
+
+- **DEPLOYMENT-GUIDE.md** - Comprehensive deployment procedures with pre-checks and rollback
+- **Azure Functions Documentation** - https://learn.microsoft.com/en-us/azure/azure-functions/
+- **Terraform Azure Provider** - https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs
+
+## 🆘 Getting Help
+
+1. Review error messages carefully
+2. Check terraform plan output before applying
+3. Verify you're in correct directory
+4. Ensure common infrastructure is deployed
+5. Check Azure Portal for resource status
+6. Review Application Insights for runtime issues
+
+## 📋 Outputs
+
+After deployment, Terraform outputs:
+
+```hcl
+function_app_id               # Resource ID
+function_app_name             # Function App name
+function_app_default_hostname # FQDN (e.g., fa-evotaskers-dev.azurewebsites.net)
+function_app_url             # HTTPS URL
+function_app_service_plan_id # App Service Plan ID
+```
+
+Access outputs:
+```bash
+terraform output function_app_url
+```
+
+## 🔐 Security Recommendations
+
 ### Development
-- Use Basic (B1) tier for cost savings
-- Keep public access enabled for easy testing
-- Use Application Insights for debugging
-- Test with production-like data structures
+- ✅ Use access keys (simpler, already configured)
+- ✅ Enable VNet integration
+- ⚠️ Private endpoints optional
+
+### QA
+- ✅ Consider managed identity
+- ✅ Enable VNet integration
+- ✅ Enable private endpoints
 
 ### Production
-- Use Premium (P1V2+) or higher for SLA
-- Enable private endpoints (disable public access)
-- Configure auto-scaling
-- Use deployment slots
-- Enable backups
-- Set up alerts
-- Use custom domains with managed certificates
-
-### Security
-- Never commit secrets to Git
-- Always use Key Vault for sensitive data
-- Reference secrets via Key Vault references in app settings
-- Use managed identity for all Azure service authentication
-- Keep runtime versions up to date
-- Review diagnostic logs regularly
-
-## 🤝 Contributing
-
-When adding new features:
-
-1. Update module version constraints if needed
-2. Add new variables to `variables.tf`
-3. Update `terraform.tfvars.example` if applicable
-4. Document in README
-5. Test in dev before promoting to qa/prod
-
-## 📞 Support
-
-For issues or questions:
-
-1. Check Application Insights → Failures
-2. Review Azure Portal → Activity Log
-3. Check Terraform state: `terraform show`
-4. Review module documentation in `/modules`
-
-## 🔗 Related Resources
-
-- [Azure App Service Documentation](https://learn.microsoft.com/en-us/azure/app-service/)
-- [Azure Functions Documentation](https://learn.microsoft.com/en-us/azure/azure-functions/)
-- [Managed Identities](https://learn.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/)
-- [Azure Key Vault](https://learn.microsoft.com/en-us/azure/key-vault/)
+- ✅ Use managed identity (required)
+- ✅ Enable VNet integration (required)
+- ✅ Enable private endpoints (required)
+- ✅ Review all security settings
+- ✅ Enable all diagnostic logging
 
 ---
 
-**Version**: 1.0  
-**Last Updated**: October 2025  
-**Maintained By**: Platform Team
-
+**Need more details?** See `DEPLOYMENT-GUIDE.md` for comprehensive deployment procedures, pre-deployment checks, and troubleshooting.

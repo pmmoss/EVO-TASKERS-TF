@@ -53,7 +53,7 @@ You should see outputs for:
 - `key_vault_uri`
 - `app_insights_connection_string`
 - `storage_account_name`
-- Network subnet IDs
+- `Network subnet IDs`
 
 ## Deploy UnlockBookings Application
 

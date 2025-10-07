@@ -1,4 +1,4 @@
-# Backend configuration for UnlockBookings Dev Environment
+# Backend configuration for UnlockBookings QA Environment
 # This uses a separate state file from common infrastructure
 
 terraform {
@@ -8,7 +8,7 @@ terraform {
     resource_group_name  = "rg-evotaskers-state-pmoss"
     storage_account_name = "stevotaskersstatepoc"
     container_name       = "tfstate"
-    key                  = "landing-zone/evo-taskers-unlockbookings-dev.tfstate"
+    key                  = "landing-zone/evo-taskers-unlockbookings-qa.tfstate"
   }
   
   required_providers {
@@ -33,3 +33,4 @@ provider "azurerm" {
 }
 
 provider "random" {}
+
