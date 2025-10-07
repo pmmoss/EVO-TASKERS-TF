@@ -1,41 +1,38 @@
-# Dev Environment Variables
-# This file contains environment-specific values
-
-# Basic Configuration
-project     = "revms"
-environment = "dev"
-location    = "West US 2"
-location_short = "wus2"
-# Network Configuration
-vnet_address_space = ["10.1.0.0/16"]
-hub_firewall_ip    = "" # Set this to your hub firewall IP when available
-
-# Security Configuration
-admin_object_ids = [
-  # Add your admin object IDs here
-  # Example: "00000000-0000-0000-0000-000000000000"
-]
-
-reader_object_ids = [
-  # Add your reader object IDs here
-]
-
-enable_key_vault_access_policy = true # Enable for initial setup
-enable_bastion                  = true
-
+# UnlockBookings Dev Environment Configuration
+# This file contains environment-specific values for the UnlockBookings application
+######## Web App Service Configuration ########
 # App Service Configuration
-app_service_os_type = "Linux"
-app_service_sku      = "B1"
-app_service_always_on = false # Set to true for production
+app_service_sku       = "P0v3"     # Basic tier for dev, use S1+ for production
+app_service_always_on = false    # Set to true for production
 
-app_service_settings = {
-  "WEBSITE_RUN_FROM_PACKAGE" = "1"
-  "WEBSITE_ENABLE_SYNC_UPDATE_SITE" = "true"
+# Runtime Configuration
+runtime_stack  = "dotnet"
+dotnet_version = "8.0"
+
+# Health Check
+health_check_path = "/health"
+
+# CORS Configuration (add allowed origins as needed)
+cors_allowed_origins = [
+  # Example: "https://yourdomain.com"
+]
+
+# Additional App Settings
+additional_app_settings = {
+  # Add application-specific settings here
+  # Example:
+  # "MyCustomSetting" = "value"
+}
+######## Function App Configuration ########
+# Function App Configuration (if you uncomment the function_app.tf module)
+function_app_sku         = "P0v3"    # Basic plan for dev, EP1 for production
+function_app_always_on   = false   # Can enable for Basic plan
+functions_worker_runtime = "dotnet"
+
+additional_function_app_settings = {
+  # Add function-specific settings here
+  name = "UnlockBookings-Functions"
 }
 
-# Tags
-tags = {
-  Environment = "Development"
-  Owner       = "Platform Team"
-  CostCenter  = "Engineering"
-}
+# Network Configuration
+enable_private_endpoint = true  # Set to true for production to disable public access

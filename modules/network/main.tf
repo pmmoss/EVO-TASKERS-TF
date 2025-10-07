@@ -26,6 +26,25 @@ resource "azurerm_subnet" "app_integration" {
   resource_group_name = var.resource_group_name
   virtual_network_name = azurerm_virtual_network.this.name
   address_prefixes     = [var.subnets[0].address_prefix]
+  
+  # Service endpoints for accessing Azure services
+  service_endpoints = [
+    "Microsoft.Storage",
+    "Microsoft.KeyVault",
+    "Microsoft.Web"
+  ]
+  
+  # Delegation for App Service VNet Integration
+  delegation {
+    name = "app-service-delegation"
+    
+    service_delegation {
+      name    = "Microsoft.Web/serverFarms"
+      actions = [
+        "Microsoft.Network/virtualNetworks/subnets/action"
+      ]
+    }
+  }
 }
 
 resource "azurerm_subnet" "private_endpoints" {
@@ -37,7 +56,7 @@ resource "azurerm_subnet" "private_endpoints" {
   service_endpoints = [
     "Microsoft.Storage",
     "Microsoft.KeyVault",
-    "Microsoft.Insights"
+    "Microsoft.ServiceBus"
   ]
 }
 
