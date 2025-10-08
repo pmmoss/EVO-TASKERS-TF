@@ -53,7 +53,7 @@ module "function_app" {
   additional_app_settings = merge(
     var.additional_function_app_settings,
     {
-      "ApplicationName" = "UnlockBookings"
+      "ApplicationName" = "automateddatafeed"
     }
   )
   

@@ -28,10 +28,10 @@ module "naming_fa" {
 
 # App Service Plan for Linux Function Apps (separate from Web App plan)
 resource "azurerm_service_plan" "this" {
-  name                = "${module.naming_asp.name}-${var.app_name}-func"
+  name                = "${module.naming_asp.name}-${var.app_name}"
   location            = var.location
   resource_group_name = var.resource_group_name
-  os_type             = "Linux"
+  os_type             = "Windows"
   sku_name            = var.sku_name
   
   tags = merge(var.tags, {
@@ -39,8 +39,8 @@ resource "azurerm_service_plan" "this" {
   })
 }
 
-# Linux Function App
-resource "azurerm_linux_function_app" "this" {
+# Windows Function App
+resource "azurerm_windows_function_app" "this" {
   name                       = "${module.naming_fa.name}-${var.app_name}"
   location                   = var.location
   resource_group_name        = var.resource_group_name
@@ -111,7 +111,7 @@ resource "azurerm_linux_function_app" "this" {
     application_stack {
       dotnet_version  = var.functions_worker_runtime == "dotnet" ? var.dotnet_version : null
       node_version    = var.functions_worker_runtime == "node" ? var.node_version : null
-      python_version  = var.functions_worker_runtime == "python" ? var.python_version : null
+      //python_version  = var.functions_worker_runtime == "python" ? var.python_version : null
       java_version    = var.functions_worker_runtime == "java" ? var.java_version : null
     }
   }
@@ -129,14 +129,14 @@ resource "azurerm_linux_function_app" "this" {
 # Private Endpoint for Function App (optional, recommended for production)
 resource "azurerm_private_endpoint" "function_app" {
   count               = var.enable_private_endpoint ? 1 : 0
-  name                = "pe-${module.naming_fa.name}"
+  name                = "pe-${var.app_name}-${module.naming_fa.name}"
   location            = var.location
   resource_group_name = var.resource_group_name
   subnet_id           = var.private_endpoint_subnet_id
 
   private_service_connection {
     name                           = "psc-${module.naming_fa.name}"
-    private_connection_resource_id = azurerm_linux_function_app.this.id
+    private_connection_resource_id = azurerm_windows_function_app.this.id
     is_manual_connection           = false
     subresource_names              = ["sites"]
   }
@@ -148,7 +148,7 @@ resource "azurerm_private_endpoint" "function_app" {
 resource "azurerm_monitor_diagnostic_setting" "function_app" {
   count                      = var.enable_diagnostics ? 1 : 0
   name                       = "diag-${module.naming_fa.name}"
-  target_resource_id         = azurerm_linux_function_app.this.id
+  target_resource_id         = azurerm_windows_function_app.this.id
   log_analytics_workspace_id = var.log_analytics_workspace_id
 
   enabled_log {
