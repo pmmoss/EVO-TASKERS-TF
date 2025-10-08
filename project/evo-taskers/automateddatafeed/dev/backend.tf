@@ -8,7 +8,7 @@ terraform {
     resource_group_name  = "rg-evotaskers-state-pmoss"
     storage_account_name = "stevotaskersstatepoc"
     container_name       = "tfstate"
-    key                  = "landing-zone/evo-taskers-unlockbookings-dev.tfstate"
+    key                  = "landing-zone/evo-taskers-automateddatafeed-dev.tfstate"
   }
   
   required_providers {

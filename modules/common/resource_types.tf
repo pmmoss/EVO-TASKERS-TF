@@ -14,6 +14,7 @@ locals {
     key_vault               = "kv"
     storage_account         = "st"
     application_insights    = "appi"
+    user_assigned_identity  = "umi"
     
     # App Services
     app_service_plan        = "asp"

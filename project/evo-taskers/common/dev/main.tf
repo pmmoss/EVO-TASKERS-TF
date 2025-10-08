@@ -65,6 +65,14 @@ module "network" {
   tags            = local.common_tags
 }
 
+# User-assigned Managed Identity for workloads
+resource "azurerm_user_assigned_identity" "workload" {
+  name                = "umi-${local.project}-${local.environment}-${local.location_short}"
+  location            = local.location
+  resource_group_name = azurerm_resource_group.this.name
+  tags                = local.common_tags
+}
+
 # Key Vault
 module "key_vault" {
   source = "../../../../modules/keyvault"  
@@ -97,9 +105,22 @@ module "storage" {
   admin_object_ids          = var.admin_object_ids
   reader_object_ids         = var.reader_object_ids
   enable_network_rules      = local.security_settings.enable_private_endpoints
-  allowed_subnet_ids        = [module.network.private_endpoints_subnet_id]
+  allowed_subnet_ids        = [module.network.private_endpoints_subnet_id, module.network.app_integration_subnet_id]
   enable_diagnostics        = local.security_settings.enable_diagnostics
   tags                      = local.common_tags
+}
+
+# RBAC: grant UAMI access to Key Vault and Storage
+resource "azurerm_role_assignment" "umi_kv_secrets_user" {
+  scope                = module.key_vault.key_vault_id
+  role_definition_name = "Key Vault Secrets User"
+  principal_id         = azurerm_user_assigned_identity.workload.principal_id
+}
+
+resource "azurerm_role_assignment" "umi_storage_blob_contributor" {
+  scope                = module.storage.storage_account_id
+  role_definition_name = "Storage Blob Data Contributor"
+  principal_id         = azurerm_user_assigned_identity.workload.principal_id
 }
 
 # Application Insights
