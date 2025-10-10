@@ -93,15 +93,15 @@ output "staging_slot_default_hostname" {
 # MONITORING OUTPUTS
 # ==============================================================================
 
-output "diagnostic_setting_id" {
-  value       = module.linux_web_app.diagnostic_setting_id
-  description = "The ID of the diagnostic setting (if enabled)"
-}
+# output "diagnostic_setting_id" {
+#   value       = module.linux_web_app.diagnostic_setting_id
+#   description = "The ID of the diagnostic setting (if enabled)"
+# }
 
-output "autoscale_setting_id" {
-  value       = module.linux_web_app.autoscale_setting_id
-  description = "The ID of the autoscale setting (if enabled)"
-}
+# output "autoscale_setting_id" {
+#   value       = module.linux_web_app.autoscale_setting_id
+#   description = "The ID of the autoscale setting (if enabled)"
+# }
 
 # ==============================================================================
 # COMPREHENSIVE OUTPUT

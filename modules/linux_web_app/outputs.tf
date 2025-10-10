@@ -152,35 +152,35 @@ output "custom_domain_bindings" {
 # MONITORING OUTPUTS
 # ==============================================================================
 
-output "diagnostic_setting_id" {
-  value       = var.enable_diagnostics ? azurerm_monitor_diagnostic_setting.app_service[0].id : null
-  description = "The ID of the diagnostic setting (if enabled)"
-}
+# output "diagnostic_setting_id" {
+#   value       = var.enable_diagnostics ? azurerm_monitor_diagnostic_setting.app_service[0].id : null
+#   description = "The ID of the diagnostic setting (if enabled)"
+# }
 
-output "autoscale_setting_id" {
-  value       = var.enable_autoscale && var.create_service_plan ? azurerm_monitor_autoscale_setting.this[0].id : null
-  description = "The ID of the autoscale setting (if enabled)"
-}
+# output "autoscale_setting_id" {
+#   value       = var.enable_autoscale && var.create_service_plan ? azurerm_monitor_autoscale_setting.this[0].id : null
+#   description = "The ID of the autoscale setting (if enabled)"
+# }
 
-output "cpu_alert_id" {
-  value       = var.enable_alerts ? azurerm_monitor_metric_alert.cpu_alert[0].id : null
-  description = "The ID of the CPU alert rule (if enabled)"
-}
+# output "cpu_alert_id" {
+#   value       = var.enable_alerts ? azurerm_monitor_metric_alert.cpu_alert[0].id : null
+#   description = "The ID of the CPU alert rule (if enabled)"
+# }
 
-output "memory_alert_id" {
-  value       = var.enable_alerts ? azurerm_monitor_metric_alert.memory_alert[0].id : null
-  description = "The ID of the memory alert rule (if enabled)"
-}
+# output "memory_alert_id" {
+#   value       = var.enable_alerts ? azurerm_monitor_metric_alert.memory_alert[0].id : null
+#   description = "The ID of the memory alert rule (if enabled)"
+# }
 
-output "response_time_alert_id" {
-  value       = var.enable_alerts ? azurerm_monitor_metric_alert.response_time_alert[0].id : null
-  description = "The ID of the response time alert rule (if enabled)"
-}
+# output "response_time_alert_id" {
+#   value       = var.enable_alerts ? azurerm_monitor_metric_alert.response_time_alert[0].id : null
+#   description = "The ID of the response time alert rule (if enabled)"
+# }
 
-output "http_errors_alert_id" {
-  value       = var.enable_alerts ? azurerm_monitor_metric_alert.http_errors_alert[0].id : null
-  description = "The ID of the HTTP errors alert rule (if enabled)"
-}
+# output "http_errors_alert_id" {
+#   value       = var.enable_alerts ? azurerm_monitor_metric_alert.http_errors_alert[0].id : null
+#   description = "The ID of the HTTP errors alert rule (if enabled)"
+# }
 
 # ==============================================================================
 # SITE CONFIG OUTPUTS

@@ -58,10 +58,10 @@ variable "sku_name" {
   description = "SKU name for the App Service Plan (e.g., B1, S1, P1V2, P1V3)"
   default     = "B1"
   
-  validation {
-    condition     = can(regex("^(B[1-3]|S[1-3]|P[1-3]V[2-3]|I[1-3]V[1-2]|WS[1-3]|Y1|EP[1-3])$", var.sku_name))
-    error_message = "SKU name must be a valid App Service Plan SKU"
-  }
+  # validation {
+  #   condition     = can(regex("^(B[1-3]|S[1-3]|P[1-3]V[2-3]|I[1-3]V[1-2]|WS[1-3]|Y1|EP[1-3])$", var.sku_name))
+  #   error_message = "SKU name must be a valid App Service Plan SKU"
+  # }
 }
 
 variable "zone_redundant" {
@@ -231,7 +231,7 @@ variable "subnet_id" {
 variable "enable_private_endpoint" {
   type        = bool
   description = "Enable private endpoint for inbound traffic"
-  default     = false
+  default     = true
 }
 
 variable "private_endpoint_subnet_id" {
@@ -342,7 +342,7 @@ variable "docker_registry_password" {
 variable "minimum_tls_version" {
   type        = string
   description = "Minimum TLS version"
-  default     = "1.2"
+  default     = "1.3"
   
   validation {
     condition     = contains(["1.0", "1.1", "1.2", "1.3"], var.minimum_tls_version)
@@ -607,17 +607,17 @@ variable "connection_strings" {
   sensitive   = true
 }
 
-variable "sticky_app_setting_names" {
-  type        = list(string)
-  description = "App setting names that should stick to the slot"
-  default     = []
-}
+# variable "sticky_app_setting_names" {
+#   type        = list(string)
+#   description = "App setting names that should stick to the slot"
+#   default     = []
+# }
 
-variable "sticky_connection_string_names" {
-  type        = list(string)
-  description = "Connection string names that should stick to the slot"
-  default     = []
-}
+# variable "sticky_connection_string_names" {
+#   type        = list(string)
+#   description = "Connection string names that should stick to the slot"
+#   default     = []
+# }
 
 # ==============================================================================
 # AUTHENTICATION VARIABLES
@@ -968,13 +968,13 @@ variable "alert_http_errors_threshold" {
 # LIFECYCLE VARIABLES
 # ==============================================================================
 
-variable "lifecycle_ignore_changes" {
-  type        = list(string)
-  description = "List of attributes to ignore in lifecycle"
-  default = [
-    "app_settings[\"WEBSITE_RUN_FROM_PACKAGE\"]",
-  ]
-}
+# variable "lifecycle_ignore_changes" {
+#   type        = list(string)
+#   description = "List of attributes to ignore in lifecycle"
+#   default = [
+#     "app_settings[\"WEBSITE_RUN_FROM_PACKAGE\"]",
+#   ]
+# }
 
 # ==============================================================================
 # TAGS

@@ -14,7 +14,7 @@ variable "app_name" {
 variable "app_service_sku" {
   type        = string
   description = "SKU name for the App Service Plan (e.g., B1, S1, P0v3, P1V3)"
-  default     = "B1"
+  default     = "P1V3"
 }
 
 variable "app_service_always_on" {
@@ -58,7 +58,7 @@ variable "python_version" {
 variable "enable_private_endpoint" {
   type        = bool
   description = "Enable private endpoint for inbound traffic (recommended for production)"
-  default     = false
+  default     = true
 }
 
 variable "https_only" {
@@ -244,41 +244,41 @@ variable "autoscale_cpu_threshold_down" {
 # ALERT VARIABLES
 # ==============================================================================
 
-variable "enable_alerts" {
-  type        = bool
-  description = "Enable metric alerts"
-  default     = false
-}
+# variable "enable_alerts" {
+#   type        = bool
+#   description = "Enable metric alerts"
+#   default     = false
+# }
 
-variable "alert_action_group_id" {
-  type        = string
-  description = "Action group ID for alerts"
-  default     = null
-}
+# variable "alert_action_group_id" {
+#   type        = string
+#   description = "Action group ID for alerts"
+#   default     = null
+# }
 
-variable "alert_cpu_threshold" {
-  type        = number
-  description = "CPU percentage threshold for alerts"
-  default     = 80
-}
+# variable "alert_cpu_threshold" {
+#   type        = number
+#   description = "CPU percentage threshold for alerts"
+#   default     = 80
+# }
 
-variable "alert_memory_threshold" {
-  type        = number
-  description = "Memory percentage threshold for alerts"
-  default     = 85
-}
+# variable "alert_memory_threshold" {
+#   type        = number
+#   description = "Memory percentage threshold for alerts"
+#   default     = 85
+# }
 
-variable "alert_response_time_threshold" {
-  type        = number
-  description = "Response time threshold in seconds for alerts"
-  default     = 5
-}
+# variable "alert_response_time_threshold" {
+#   type        = number
+#   description = "Response time threshold in seconds for alerts"
+#   default     = 5
+# }
 
-variable "alert_http_errors_threshold" {
-  type        = number
-  description = "HTTP 5xx errors threshold for alerts"
-  default     = 10
-}
+# variable "alert_http_errors_threshold" {
+#   type        = number
+#   description = "HTTP 5xx errors threshold for alerts"
+#   default     = 10
+# }
 
 # ==============================================================================
 # IP RESTRICTION VARIABLES

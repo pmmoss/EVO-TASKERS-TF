@@ -91,12 +91,12 @@ module "linux_web_app" {
   autoscale_cpu_threshold_down = var.autoscale_cpu_threshold_down
   
   # Alerting
-  enable_alerts                 = var.enable_alerts
-  alert_action_group_id         = var.alert_action_group_id
-  alert_cpu_threshold           = var.alert_cpu_threshold
-  alert_memory_threshold        = var.alert_memory_threshold
-  alert_response_time_threshold = var.alert_response_time_threshold
-  alert_http_errors_threshold   = var.alert_http_errors_threshold
+  # enable_alerts                 = var.enable_alerts
+  # alert_action_group_id         = var.alert_action_group_id
+  # alert_cpu_threshold           = var.alert_cpu_threshold
+  # alert_memory_threshold        = var.alert_memory_threshold
+  # alert_response_time_threshold = var.alert_response_time_threshold
+  # alert_http_errors_threshold   = var.alert_http_errors_threshold
   
   # IP Restrictions (if needed)
   ip_restrictions     = var.ip_restrictions
@@ -116,8 +116,8 @@ module "linux_web_app" {
   connection_strings = var.connection_strings
   
   # Sticky Settings (for deployment slots)
-  sticky_app_setting_names       = var.sticky_app_setting_names
-  sticky_connection_string_names = var.sticky_connection_string_names
+  # sticky_app_setting_names       = var.sticky_app_setting_names
+  # sticky_connection_string_names = var.sticky_connection_string_names
   
   tags = local.tags
 }

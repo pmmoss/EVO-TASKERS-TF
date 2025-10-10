@@ -11,7 +11,7 @@ app_name = "dashboardfrontend"
 # APP SERVICE PLAN CONFIGURATION
 # ==============================================================================
 
-app_service_sku       = "P0v3"     # Basic tier for dev (cost-effective)
+app_service_sku       = "P1v3"     # Basic tier for dev (cost-effective)
 app_service_always_on = true    # Can be false for dev to save costs
 
 # ==============================================================================
@@ -32,7 +32,7 @@ node_version  = "20-lts"
 # NETWORKING CONFIGURATION
 # ==============================================================================
 
-enable_private_endpoint = false  # Public access OK for dev (save costs)
+enable_private_endpoint = true  
 https_only              = true   # Always enforce HTTPS
 minimum_tls_version     = "1.2"  # Minimum TLS 1.2
 ftps_state              = "Disabled"  # Disable FTP/FTPS
@@ -109,12 +109,12 @@ autoscale_cpu_threshold_down = 30
 # ALERTING CONFIGURATION
 # ==============================================================================
 
-enable_alerts                 = false  # Alerts not needed for dev
-alert_action_group_id         = null
-alert_cpu_threshold           = 80
-alert_memory_threshold        = 85
-alert_response_time_threshold = 10
-alert_http_errors_threshold   = 20
+# enable_alerts                 = false  # Alerts not needed for dev
+# alert_action_group_id         = null
+# alert_cpu_threshold           = 80
+# alert_memory_threshold        = 85
+# alert_response_time_threshold = 10
+# alert_http_errors_threshold   = 20
 
 # ==============================================================================
 # IP RESTRICTIONS
@@ -172,9 +172,9 @@ connection_strings = []
 # ==============================================================================
 
 # Settings that should NOT be swapped during slot swap
-sticky_app_setting_names = [
-  "ASPNETCORE_ENVIRONMENT"
-]
+# sticky_app_setting_names = [
+#   "ASPNETCORE_ENVIRONMENT"
+# ]
 
-sticky_connection_string_names = []
+# sticky_connection_string_names = []
 

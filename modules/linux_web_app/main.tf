@@ -200,13 +200,13 @@ resource "azurerm_linux_web_app" "this" {
   }
   
   # Sticky settings (slot-specific settings)
-  dynamic "sticky_settings" {
-    for_each = length(var.sticky_app_setting_names) > 0 || length(var.sticky_connection_string_names) > 0 ? [1] : []
-    content {
-      app_setting_names       = var.sticky_app_setting_names
-      connection_string_names = var.sticky_connection_string_names
-    }
-  }
+  # dynamic "sticky_settings" {
+  #   for_each = length(var.sticky_app_setting_names) > 0 || length(var.sticky_connection_string_names) > 0 ? [1] : []
+  #   content {
+  #     app_setting_names       = var.sticky_app_setting_names
+  #     connection_string_names = var.sticky_connection_string_names
+  #   }
+  # }
 
   site_config {
     # Minimum TLS version
@@ -446,7 +446,9 @@ resource "azurerm_linux_web_app" "this" {
   tags = var.tags
   
   lifecycle {
-    ignore_changes = var.lifecycle_ignore_changes
+    ignore_changes = [
+      app_settings["WEBSITE_RUN_FROM_PACKAGE"],
+    ]
   }
 }
 
@@ -533,182 +535,182 @@ resource "azurerm_private_endpoint" "app_service" {
   tags = var.tags
 }
 
-# Diagnostic Settings (if enabled)
-resource "azurerm_monitor_diagnostic_setting" "app_service" {
-  count                      = var.enable_diagnostics ? 1 : 0
-  name                       = "diag-${module.naming_app.name}-${var.app_name}"
-  target_resource_id         = azurerm_linux_web_app.this.id
-  log_analytics_workspace_id = var.log_analytics_workspace_id
-  storage_account_id         = var.diagnostics_storage_account_id
-  eventhub_name              = var.diagnostics_eventhub_name
-  eventhub_authorization_rule_id = var.diagnostics_eventhub_authorization_rule_id
+# # Diagnostic Settings (if enabled)
+# resource "azurerm_monitor_diagnostic_setting" "app_service" {
+#   count                      = var.enable_diagnostics ? 1 : 0
+#   name                       = "diag-${module.naming_app.name}-${var.app_name}"
+#   target_resource_id         = azurerm_linux_web_app.this.id
+#   log_analytics_workspace_id = var.log_analytics_workspace_id
+#   storage_account_id         = var.diagnostics_storage_account_id
+#   eventhub_name              = var.diagnostics_eventhub_name
+#   eventhub_authorization_rule_id = var.diagnostics_eventhub_authorization_rule_id
 
-  # HTTP Logs
-  dynamic "enabled_log" {
-    for_each = contains(var.diagnostic_log_categories, "AppServiceHTTPLogs") ? [1] : []
-    content {
-      category = "AppServiceHTTPLogs"
-    }
-  }
+#   # HTTP Logs
+#   dynamic "enabled_log" {
+#     for_each = contains(var.diagnostic_log_categories, "AppServiceHTTPLogs") ? [1] : []
+#     content {
+#       category = "AppServiceHTTPLogs"
+#     }
+#   }
 
-  # Console Logs
-  dynamic "enabled_log" {
-    for_each = contains(var.diagnostic_log_categories, "AppServiceConsoleLogs") ? [1] : []
-    content {
-      category = "AppServiceConsoleLogs"
-    }
-  }
+#   # Console Logs
+#   dynamic "enabled_log" {
+#     for_each = contains(var.diagnostic_log_categories, "AppServiceConsoleLogs") ? [1] : []
+#     content {
+#       category = "AppServiceConsoleLogs"
+#     }
+#   }
 
-  # Application Logs
-  dynamic "enabled_log" {
-    for_each = contains(var.diagnostic_log_categories, "AppServiceAppLogs") ? [1] : []
-    content {
-      category = "AppServiceAppLogs"
-    }
-  }
+#   # Application Logs
+#   dynamic "enabled_log" {
+#     for_each = contains(var.diagnostic_log_categories, "AppServiceAppLogs") ? [1] : []
+#     content {
+#       category = "AppServiceAppLogs"
+#     }
+#   }
 
-  # Audit Logs
-  dynamic "enabled_log" {
-    for_each = contains(var.diagnostic_log_categories, "AppServiceAuditLogs") ? [1] : []
-    content {
-      category = "AppServiceAuditLogs"
-    }
-  }
+#   # Audit Logs
+#   dynamic "enabled_log" {
+#     for_each = contains(var.diagnostic_log_categories, "AppServiceAuditLogs") ? [1] : []
+#     content {
+#       category = "AppServiceAuditLogs"
+#     }
+#   }
   
-  # File Audit Logs
-  dynamic "enabled_log" {
-    for_each = contains(var.diagnostic_log_categories, "AppServiceFileAuditLogs") ? [1] : []
-    content {
-      category = "AppServiceFileAuditLogs"
-    }
-  }
+#   # File Audit Logs
+#   dynamic "enabled_log" {
+#     for_each = contains(var.diagnostic_log_categories, "AppServiceFileAuditLogs") ? [1] : []
+#     content {
+#       category = "AppServiceFileAuditLogs"
+#     }
+#   }
   
-  # Platform Logs
-  dynamic "enabled_log" {
-    for_each = contains(var.diagnostic_log_categories, "AppServicePlatformLogs") ? [1] : []
-    content {
-      category = "AppServicePlatformLogs"
-    }
-  }
+#   # Platform Logs
+#   dynamic "enabled_log" {
+#     for_each = contains(var.diagnostic_log_categories, "AppServicePlatformLogs") ? [1] : []
+#     content {
+#       category = "AppServicePlatformLogs"
+#     }
+#   }
   
-  # IP Security Audit Logs
-  dynamic "enabled_log" {
-    for_each = contains(var.diagnostic_log_categories, "AppServiceIPSecAuditLogs") ? [1] : []
-    content {
-      category = "AppServiceIPSecAuditLogs"
-    }
-  }
+#   # IP Security Audit Logs
+#   dynamic "enabled_log" {
+#     for_each = contains(var.diagnostic_log_categories, "AppServiceIPSecAuditLogs") ? [1] : []
+#     content {
+#       category = "AppServiceIPSecAuditLogs"
+#     }
+#   }
   
-  # Anti-virus scan logs
-  dynamic "enabled_log" {
-    for_each = contains(var.diagnostic_log_categories, "AppServiceAntivirusScanAuditLogs") ? [1] : []
-    content {
-      category = "AppServiceAntivirusScanAuditLogs"
-    }
-  }
+#   # Anti-virus scan logs
+#   dynamic "enabled_log" {
+#     for_each = contains(var.diagnostic_log_categories, "AppServiceAntivirusScanAuditLogs") ? [1] : []
+#     content {
+#       category = "AppServiceAntivirusScanAuditLogs"
+#     }
+#   }
 
-  enabled_metric {
-    category = "AllMetrics"
-  }
-}
+#   enabled_metric {
+#     category = "AllMetrics"
+#   }
+# }
 
-# Alert rules (optional)
-resource "azurerm_monitor_metric_alert" "cpu_alert" {
-  count               = var.enable_alerts ? 1 : 0
-  name                = "alert-cpu-${module.naming_app.name}-${var.app_name}"
-  resource_group_name = var.resource_group_name
-  scopes              = [var.create_service_plan ? azurerm_service_plan.this[0].id : var.existing_service_plan_id]
-  description         = "Alert when CPU percentage exceeds threshold"
-  severity            = 2
-  frequency           = "PT5M"
-  window_size         = "PT15M"
+# # Alert rules (optional)
+# resource "azurerm_monitor_metric_alert" "cpu_alert" {
+#   count               = var.enable_alerts ? 1 : 0
+#   name                = "alert-cpu-${module.naming_app.name}-${var.app_name}"
+#   resource_group_name = var.resource_group_name
+#   scopes              = [var.create_service_plan ? azurerm_service_plan.this[0].id : var.existing_service_plan_id]
+#   description         = "Alert when CPU percentage exceeds threshold"
+#   severity            = 2
+#   frequency           = "PT5M"
+#   window_size         = "PT15M"
 
-  criteria {
-    metric_namespace = "Microsoft.Web/serverfarms"
-    metric_name      = "CpuPercentage"
-    aggregation      = "Average"
-    operator         = "GreaterThan"
-    threshold        = var.alert_cpu_threshold
-  }
+#   criteria {
+#     metric_namespace = "Microsoft.Web/serverfarms"
+#     metric_name      = "CpuPercentage"
+#     aggregation      = "Average"
+#     operator         = "GreaterThan"
+#     threshold        = var.alert_cpu_threshold
+#   }
 
-  action {
-    action_group_id = var.alert_action_group_id
-  }
+#   action {
+#     action_group_id = var.alert_action_group_id
+#   }
 
-  tags = var.tags
-}
+#   tags = var.tags
+# }
 
-resource "azurerm_monitor_metric_alert" "memory_alert" {
-  count               = var.enable_alerts ? 1 : 0
-  name                = "alert-memory-${module.naming_app.name}-${var.app_name}"
-  resource_group_name = var.resource_group_name
-  scopes              = [var.create_service_plan ? azurerm_service_plan.this[0].id : var.existing_service_plan_id]
-  description         = "Alert when memory percentage exceeds threshold"
-  severity            = 2
-  frequency           = "PT5M"
-  window_size         = "PT15M"
+# resource "azurerm_monitor_metric_alert" "memory_alert" {
+#   count               = var.enable_alerts ? 1 : 0
+#   name                = "alert-memory-${module.naming_app.name}-${var.app_name}"
+#   resource_group_name = var.resource_group_name
+#   scopes              = [var.create_service_plan ? azurerm_service_plan.this[0].id : var.existing_service_plan_id]
+#   description         = "Alert when memory percentage exceeds threshold"
+#   severity            = 2
+#   frequency           = "PT5M"
+#   window_size         = "PT15M"
 
-  criteria {
-    metric_namespace = "Microsoft.Web/serverfarms"
-    metric_name      = "MemoryPercentage"
-    aggregation      = "Average"
-    operator         = "GreaterThan"
-    threshold        = var.alert_memory_threshold
-  }
+#   criteria {
+#     metric_namespace = "Microsoft.Web/serverfarms"
+#     metric_name      = "MemoryPercentage"
+#     aggregation      = "Average"
+#     operator         = "GreaterThan"
+#     threshold        = var.alert_memory_threshold
+#   }
 
-  action {
-    action_group_id = var.alert_action_group_id
-  }
+#   action {
+#     action_group_id = var.alert_action_group_id
+#   }
 
-  tags = var.tags
-}
+#   tags = var.tags
+# }
 
-resource "azurerm_monitor_metric_alert" "response_time_alert" {
-  count               = var.enable_alerts ? 1 : 0
-  name                = "alert-response-${module.naming_app.name}-${var.app_name}"
-  resource_group_name = var.resource_group_name
-  scopes              = [azurerm_linux_web_app.this.id]
-  description         = "Alert when response time exceeds threshold"
-  severity            = 3
-  frequency           = "PT5M"
-  window_size         = "PT15M"
+# resource "azurerm_monitor_metric_alert" "response_time_alert" {
+#   count               = var.enable_alerts ? 1 : 0
+#   name                = "alert-response-${module.naming_app.name}-${var.app_name}"
+#   resource_group_name = var.resource_group_name
+#   scopes              = [azurerm_linux_web_app.this.id]
+#   description         = "Alert when response time exceeds threshold"
+#   severity            = 3
+#   frequency           = "PT5M"
+#   window_size         = "PT15M"
 
-  criteria {
-    metric_namespace = "Microsoft.Web/sites"
-    metric_name      = "HttpResponseTime"
-    aggregation      = "Average"
-    operator         = "GreaterThan"
-    threshold        = var.alert_response_time_threshold
-  }
+#   criteria {
+#     metric_namespace = "Microsoft.Web/sites"
+#     metric_name      = "HttpResponseTime"
+#     aggregation      = "Average"
+#     operator         = "GreaterThan"
+#     threshold        = var.alert_response_time_threshold
+#   }
 
-  action {
-    action_group_id = var.alert_action_group_id
-  }
+#   action {
+#     action_group_id = var.alert_action_group_id
+#   }
 
-  tags = var.tags
-}
+#   tags = var.tags
+# }
 
-resource "azurerm_monitor_metric_alert" "http_errors_alert" {
-  count               = var.enable_alerts ? 1 : 0
-  name                = "alert-http-errors-${module.naming_app.name}-${var.app_name}"
-  resource_group_name = var.resource_group_name
-  scopes              = [azurerm_linux_web_app.this.id]
-  description         = "Alert when HTTP 5xx errors exceed threshold"
-  severity            = 1
-  frequency           = "PT5M"
-  window_size         = "PT15M"
+# resource "azurerm_monitor_metric_alert" "http_errors_alert" {
+#   count               = var.enable_alerts ? 1 : 0
+#   name                = "alert-http-errors-${module.naming_app.name}-${var.app_name}"
+#   resource_group_name = var.resource_group_name
+#   scopes              = [azurerm_linux_web_app.this.id]
+#   description         = "Alert when HTTP 5xx errors exceed threshold"
+#   severity            = 1
+#   frequency           = "PT5M"
+#   window_size         = "PT15M"
 
-  criteria {
-    metric_namespace = "Microsoft.Web/sites"
-    metric_name      = "Http5xx"
-    aggregation      = "Total"
-    operator         = "GreaterThan"
-    threshold        = var.alert_http_errors_threshold
-  }
+#   criteria {
+#     metric_namespace = "Microsoft.Web/sites"
+#     metric_name      = "Http5xx"
+#     aggregation      = "Total"
+#     operator         = "GreaterThan"
+#     threshold        = var.alert_http_errors_threshold
+#   }
 
-  action {
-    action_group_id = var.alert_action_group_id
-  }
+#   action {
+#     action_group_id = var.alert_action_group_id
+#   }
 
-  tags = var.tags
-}
+#   tags = var.tags
+# }
