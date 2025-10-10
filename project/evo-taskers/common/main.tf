@@ -8,7 +8,7 @@ resource "azurerm_resource_group" "this" {
 }
 
 module "naming_rg" {
-  source        = "../../../../modules/naming"
+  source        = "../../../modules/naming"
   resource_type = "rg"
   project       = local.project
   environment   = local.environment
@@ -18,7 +18,7 @@ module "naming_rg" {
 
 # Log Analytics Workspace (created first as it's needed by other resources)
 module "log_analytics" {
-  source = "../../../../modules/log_analytics"
+  source = "../../../modules/log_analytics"
   
   project                = local.project
   environment           = local.environment
@@ -35,7 +35,7 @@ module "log_analytics" {
 
 # Network Infrastructure
 module "network" {
-  source = "../../../../modules/network"
+  source = "../../../modules/network"
   
   resource_group_name = azurerm_resource_group.this.name
   location           = local.location
@@ -75,7 +75,7 @@ resource "azurerm_user_assigned_identity" "workload" {
 
 # Key Vault
 module "key_vault" {
-  source = "../../../../modules/keyvault"  
+  source = "../../../modules/keyvault"  
   
   project                      = local.project
   environment                 = local.environment
@@ -93,7 +93,7 @@ module "key_vault" {
 
 # Storage Account
 module "storage" {
-  source = "../../../../modules/storage"
+  source = "../../../modules/storage"
   
   project                    = local.project
   environment                = local.environment
@@ -125,7 +125,7 @@ resource "azurerm_role_assignment" "umi_storage_blob_contributor" {
 
 # Application Insights
 module "app_insights" {
-  source = "../../../../modules/app_insights"
+  source = "../../../modules/app_insights"
   project                     = local.project
   environment                = local.environment
   location                   = local.location
@@ -145,7 +145,7 @@ module "app_insights" {
 # Bastion Host (optional)
 module "bastion" {
   count = var.enable_bastion ? 1 : 0
-  source = "../../../../modules/bastion"
+  source = "../../../modules/bastion"
   
   project                     = local.project
   environment                = local.environment

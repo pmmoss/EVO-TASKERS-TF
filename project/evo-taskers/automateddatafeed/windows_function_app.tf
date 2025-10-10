@@ -1,13 +1,13 @@
-# Function App for UnlockBookings background jobs (optional)
-# Uncomment this module if you need a Function App for background processing
+# Windows Function App for AutomatedDataFeed background jobs
 
-module "function_app" {
-  source = "../../../../modules/windows_function_app"
+module "windows_function_app" {
+  source = "../../../modules/windows_function_app"
   
   # Application identifier
   app_name = var.app_name
   
   # Project configuration from common infrastructure
+  # Environment is automatically derived from workspace name
   project        = local.project
   environment    = local.environment
   location       = local.location
@@ -16,7 +16,7 @@ module "function_app" {
   # Resource group
   resource_group_name = data.terraform_remote_state.common.outputs.resource_group_name
   
-  # SKU configuration (Y1 = Consumption, EP1 = Premium, B1 = Basic/Dedicated)
+  # SKU configuration (Y1 = Consumption, EP1 = Premium, P0v3/P1v3 = Basic/Standard)
   sku_name  = var.function_app_sku
   always_on = var.function_app_always_on
   
@@ -53,7 +53,8 @@ module "function_app" {
   additional_app_settings = merge(
     var.additional_function_app_settings,
     {
-      "ApplicationName" = "automateddatafeed"
+      "ApplicationName" = "AutomatedDataFeed"
+      "Workspace"       = terraform.workspace
     }
   )
   
