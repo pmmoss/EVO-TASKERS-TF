@@ -1,5 +1,5 @@
-# Backend configuration for UnlockBookings QA Environment
-# This uses a separate state file from common infrastructure
+# Backend configuration for AutomatedDataFeed (all environments)
+# Workspaces automatically create separate state files with :env suffix
 
 terraform {
   required_version = ">=1.2"
@@ -8,7 +8,10 @@ terraform {
     resource_group_name  = "rg-evotaskers-state-pmoss"
     storage_account_name = "stevotaskersstatepoc"
     container_name       = "tfstate"
-    key                  = "landing-zone/evo-taskers-unlockbookings-qa.tfstate"
+    # Workspace 'dev' will use: landing-zone/evo-taskers-automateddatafeed.tfstateenv:dev
+    # Workspace 'qa' will use:  landing-zone/evo-taskers-automateddatafeed.tfstateenv:qa
+    # Workspace 'prod' will use: landing-zone/evo-taskers-automateddatafeed.tfstateenv:prod
+    key                  = "landing-zone/evo-taskers-autoopenshorex.tfstate"
   }
   
   required_providers {

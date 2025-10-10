@@ -1,29 +1,21 @@
-# Environment variable (required)
-variable "environment" {
-  type        = string
-  description = "Environment name (dev, qa, prod)"
-  validation {
-    condition     = contains(["dev", "qa", "prod"], var.environment)
-    error_message = "Environment must be dev, qa, or prod."
-  }
-}
+# Variables for AutomatedDataFeed (all environments)
+# Environment-specific values are set in dev.tfvars, qa.tfvars, prod.tfvars
 
 variable "app_name" {
   type        = string
   description = "Application name (e.g., unlockbookings, dashboard)"
+  default     = "automateddatafeed"
 }
 
 # App Service Configuration
 variable "app_service_sku" {
   type        = string
   description = "App Service Plan SKU (e.g., B1, S1, P1V2)"
-  default     = "B1"
 }
 
 variable "app_service_always_on" {
   type        = bool
   description = "Enable always on for App Service (recommended for production)"
-  default     = false
 }
 
 variable "runtime_stack" {
@@ -56,17 +48,15 @@ variable "additional_app_settings" {
   default     = {}
 }
 
-# Function App Configuration (if using Function App)
+# Function App Configuration
 variable "function_app_sku" {
   type        = string
-  description = "Function App SKU (Y1 for Consumption, EP1 for Premium, B1 for Basic)"
-  default     = "Y1"
+  description = "Function App SKU (Y1 for Consumption, EP1 for Premium, B1/P0v3 for Basic)"
 }
 
 variable "function_app_always_on" {
   type        = bool
   description = "Enable always on for Function App (not available on Consumption plan)"
-  default     = false
 }
 
 variable "functions_worker_runtime" {
@@ -85,6 +75,5 @@ variable "additional_function_app_settings" {
 variable "enable_private_endpoint" {
   type        = bool
   description = "Enable private endpoint for inbound traffic (recommended for production)"
-  default     = false
 }
 
