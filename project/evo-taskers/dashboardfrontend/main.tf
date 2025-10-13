@@ -1,4 +1,4 @@
-# AutomatedDataFeed Application Infrastructure
+# DashboardFrontend Application Infrastructure
 # This file contains shared configuration for all environments using workspaces
 
 # Get environment from workspace name
