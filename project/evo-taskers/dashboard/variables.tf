@@ -1,4 +1,4 @@
-# Variables for AutomatedDataFeed (all environments)
+# Variables for dashboard (all environments)
 # Environment-specific values are set in dev.tfvars, qa.tfvars, prod.tfvars
 
 variable "app_name" {
