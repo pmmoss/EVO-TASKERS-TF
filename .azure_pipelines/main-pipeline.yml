@@ -1,0 +1,75 @@
+trigger:
+  branches:
+    include:
+      - main
+
+parameters:
+  - name: environment
+    type: string
+    default: 'dev'
+  - name: projectName
+    type: string
+    default: 'evo-taskers'
+  - name: appName
+    type: string
+    default: 'unlockbookings'
+
+variables:
+  - group: 'terraform-backend'
+
+stages:
+  - stage: Deploy
+    displayName: 'Deploy to ${{ parameters.environment }}'
+    jobs:
+      - job: Terraform
+        displayName: 'Terraform Deployment'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - checkout: self
+
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: '3.x'
+              addToPath: true
+
+          - task: TerraformInstaller@1
+            inputs:
+              terraformVersion: 'latest'
+
+          - template: templates/terraform-init.yml
+            parameters:
+              environment: ${{ parameters.environment }}
+              workingDirectory: 'project/${{ parameters.projectName }}/common'
+
+          - template: templates/terraform-plan.yml
+            parameters:
+              environment: ${{ parameters.environment }}
+              workingDirectory: 'project/${{ parameters.projectName }}/common'
+
+          - template: templates/terraform-apply.yml
+            parameters:
+              environment: ${{ parameters.environment }}
+              workingDirectory: 'project/${{ parameters.projectName }}/common'
+ 
+      - job: DeployApp
+        displayName: 'Deploy App Resources'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - checkout: self
+
+          - template: templates/terraform-init.yml
+            parameters:
+              environment: ${{ parameters.environment }}
+              workingDirectory: 'project/${{ parameters.projectName }}/${{ parameters.appName }}'
+
+          - template: templates/terraform-plan.yml
+            parameters:
+              environment: ${{ parameters.environment }}
+              workingDirectory: 'project/${{ parameters.projectName }}/${{ parameters.appName }}'
+
+          - template: templates/terraform-apply.yml
+            parameters:
+              environment: ${{ parameters.environment }}
+              workingDirectory: 'project/${{ parameters.projectName }}/${{ parameters.appName }}'

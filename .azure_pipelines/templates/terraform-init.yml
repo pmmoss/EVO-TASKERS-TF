@@ -1,0 +1,15 @@
+parameters:
+  - name: environment
+    type: string
+  - name: workingDirectory
+    type: string
+
+steps:
+  - script: |
+      terraform init \
+        -backend-config="resource_group_name=$(backend_rg)" \
+        -backend-config="storage_account_name=$(backend_sa)" \
+        -backend-config="container_name=$(backend_container)" \
+        -backend-config="key=${{ parameters.environment }}.tfstate"
+    workingDirectory: ${{ parameters.workingDirectory }}
+    displayName: 'Terraform Init'
