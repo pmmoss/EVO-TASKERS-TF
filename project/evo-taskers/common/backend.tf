@@ -1,14 +1,16 @@
-# Backend configuration for Landing Zone state
-# This uses a separate state file from application deployments
+# Backend configuration
+# Subscription ID is provided by Azure DevOps service connection via ARM_SUBSCRIPTION_ID
+# Backend state configuration is provided via -backend-config in pipeline
 
 terraform {
   required_version = ">=1.2"
   
   backend "azurerm" {
-    resource_group_name  = "rg-evotaskers-state-pmoss"
-    storage_account_name = "stevotaskersstatepoc"
-    container_name       = "tfstate"
-    key                  = "landing-zone/evo-taskers-common-dev.tfstate"
+    # Backend configuration provided via pipeline:
+    # - resource_group_name
+    # - storage_account_name
+    # - container_name
+    # - key
   }
   
   required_providers {
@@ -24,7 +26,8 @@ terraform {
 }
 
 provider "azurerm" {
-  subscription_id = "b2c30590-db17-4740-b3c6-6853aab1d9a2"
+  # subscription_id is set via ARM_SUBSCRIPTION_ID environment variable
+  # This is automatically provided by Azure DevOps service connection
   features {
     resource_group {
       prevent_deletion_if_contains_resources = false
