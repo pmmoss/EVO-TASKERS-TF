@@ -52,7 +52,9 @@ stages:
             parameters:
               environment: ${{ parameters.environment }}
               workingDirectory: 'project/${{ parameters.projectName }}/common'
- 
+  - stage: DeployApp
+    displayName: 'Deploy App Resources'
+    jobs:
       - job: DeployApp
         displayName: 'Deploy App Resources'
         pool:
