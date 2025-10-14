@@ -1,11 +1,39 @@
-## Workspace Approach Benefits
+## 🚀 Azure DevOps Pipelines (RECOMMENDED)
+
+**New!** Automated deployment pipelines with best practices are now available!
+
+👉 **[Get Started with Pipelines](./PIPELINE-SETUP-SUMMARY.md)** 👈
+
+### Why Use Pipelines?
+
+- ✅ **No hardcoded credentials** - All via service connections
+- ✅ **Automated approvals** - Required reviews for production
+- ✅ **Security scanning** - Automatic vulnerability checks
+- ✅ **Consistent deployments** - Same process every time
+- ✅ **Team collaboration** - Multiple developers, no conflicts
+- ✅ **Audit trail** - Complete deployment history
+
+### Quick Links
+
+- **[Setup Guide](./pipelines/setup/COMPLETE-SETUP-GUIDE.md)** - Complete setup in 2-3 hours
+- **[Pipeline Documentation](./pipelines/README.md)** - Comprehensive guide
+- **[Quick Reference](./pipelines/QUICK-REFERENCE.md)** - Common operations
+- **[Migration Guide](./pipelines/MIGRATION-GUIDE.md)** - Migrate from manual deployments
+
+---
+
+## Manual Terraform Deployment (Legacy)
+
+> ⚠️ **Note**: Manual deployments are being phased out. Please use Azure DevOps pipelines above for new deployments.
+
+### Workspace Approach Benefits
 
 - **Single source of truth**: One set of configuration files for all environments
 - **DRY principle**: No code duplication across dev/qa/prod
 - **Easy maintenance**: Changes apply to all environments from one place
 - **Built-in environment switching**: Use `terraform workspace` commands
 
-## Quick Start
+## Quick Start (Manual)
 
 ### Initial Setup
 
