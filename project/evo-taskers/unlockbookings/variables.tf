@@ -88,4 +88,35 @@ variable "enable_private_endpoint" {
   default     = false
 }
 
+# Logic App Configuration
+variable "logic_app_sku" {
+  type        = string
+  description = "Logic App SKU (WS1, WS2, WS3 for Workflow Standard)"
+  default     = "WS1"
+}
+
+variable "logic_app_storage_share_name" {
+  type        = string
+  description = "Storage share name for Logic App content"
+  default     = "unlockbookings-workflow-content"
+}
+
+variable "use_extension_bundle" {
+  type        = bool
+  description = "Enable extension bundle for Logic Apps"
+  default     = true
+}
+
+variable "bundle_version" {
+  type        = string
+  description = "Extension bundle version range"
+  default     = "[1.*, 2.0.0)"
+}
+
+variable "additional_logic_app_settings" {
+  type        = map(string)
+  description = "Additional logic app settings"
+  default     = {}
+}
+
 

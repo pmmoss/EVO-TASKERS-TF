@@ -59,3 +59,21 @@ additional_function_app_settings = {
 
 # Network Configuration
 enable_private_endpoint = true # Set to true for production to disable public access
+
+# Logic App Standard Configuration
+logic_app_sku = "WS1" # WS1, WS2, WS3 for Workflow Standard
+logic_app_storage_share_name = "unlockbookings-workflow-content"
+use_extension_bundle = true
+bundle_version = "[1.*, 2.0.0)"
+
+# Additional Logic App Settings
+additional_logic_app_settings = {
+  # Add workflow-specific settings here
+  "WorkflowName" = "UnlockBookingsWorkflow"
+  
+  # Workflow runtime settings
+  "Workflows.Connection.AuthenticationAudience" = "https://management.azure.com/"
+  
+  # Example: Configure connector settings
+  # "azureblob-connectionKey" = "@Microsoft.KeyVault(SecretUri=https://your-keyvault.vault.azure.net/secrets/blob-connection-key/)"
+}
