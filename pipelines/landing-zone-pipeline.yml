@@ -1,0 +1,213 @@
+# Landing Zone / Common Infrastructure Pipeline
+# This pipeline deploys the shared infrastructure (VNet, Key Vault, Storage, etc.)
+# that is used by all application workloads
+#
+# Deployment Order: This MUST be deployed before any application pipelines
+
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+  paths:
+    include:
+      - project/evo-taskers/common/*
+      - modules/network/*
+      - modules/keyvault/*
+      - modules/storage/*
+      - modules/log_analytics/*
+      - modules/app_insights/*
+      - modules/bastion/*
+      - pipelines/landing-zone-pipeline.yml
+
+pr:
+  branches:
+    include:
+      - main
+      - develop
+  paths:
+    include:
+      - project/evo-taskers/common/*
+      - modules/network/*
+      - modules/keyvault/*
+      - modules/storage/*
+      - modules/log_analytics/*
+      - modules/app_insights/*
+      - modules/bastion/*
+
+variables:
+  - group: 'terraform-backend'
+  - group: 'evo-taskers-common'
+  - name: terraformVersion
+    value: 'latest'
+  - name: workingDirectory
+    value: '$(System.DefaultWorkingDirectory)/project/evo-taskers/common'
+
+stages:
+  # ============================================
+  # DEVELOPMENT ENVIRONMENT
+  # ============================================
+  - stage: Plan_Dev
+    displayName: 'Plan - Development'
+    condition: or(eq(variables['Build.SourceBranch'], 'refs/heads/develop'), eq(variables['Build.Reason'], 'PullRequest'))
+    jobs:
+      - job: TerraformPlan
+        displayName: 'Terraform Plan (Dev)'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - template: templates/terraform-template.yml
+            parameters:
+              workingDirectory: $(workingDirectory)
+              environment: 'dev'
+              serviceConnection: '$(DEV_SERVICE_CONNECTION)'
+              tfVarsFile: 'dev.tfvars'
+              terraformVersion: $(terraformVersion)
+              backendResourceGroup: '$(BACKEND_RESOURCE_GROUP_NAME)'
+              backendStorageAccount: '$(BACKEND_STORAGE_ACCOUNT_NAME)'
+              backendContainerName: '$(BACKEND_CONTAINER_NAME)'
+              backendStateKey: 'landing-zone/evo-taskers-common-dev.tfstate'
+              useWorkspaces: false
+              planOnly: true
+
+  - stage: Apply_Dev
+    displayName: 'Apply - Development'
+    dependsOn: Plan_Dev
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/develop'), ne(variables['Build.Reason'], 'PullRequest'))
+    jobs:
+      - deployment: TerraformApply
+        displayName: 'Terraform Apply (Dev)'
+        pool:
+          vmImage: 'ubuntu-latest'
+        environment: 'evo-taskers-dev'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                - template: templates/terraform-template.yml
+                  parameters:
+                    workingDirectory: $(workingDirectory)
+                    environment: 'dev'
+                    serviceConnection: '$(DEV_SERVICE_CONNECTION)'
+                    tfVarsFile: 'dev.tfvars'
+                    terraformVersion: $(terraformVersion)
+                    backendResourceGroup: '$(BACKEND_RESOURCE_GROUP_NAME)'
+                    backendStorageAccount: '$(BACKEND_STORAGE_ACCOUNT_NAME)'
+                    backendContainerName: '$(BACKEND_CONTAINER_NAME)'
+                    backendStateKey: 'landing-zone/evo-taskers-common-dev.tfstate'
+                    useWorkspaces: false
+                    planOnly: false
+
+  # ============================================
+  # QA ENVIRONMENT
+  # ============================================
+  - stage: Plan_QA
+    displayName: 'Plan - QA'
+    dependsOn: Apply_Dev
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/develop'))
+    jobs:
+      - job: TerraformPlan
+        displayName: 'Terraform Plan (QA)'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - template: templates/terraform-template.yml
+            parameters:
+              workingDirectory: $(workingDirectory)
+              environment: 'qa'
+              serviceConnection: '$(QA_SERVICE_CONNECTION)'
+              tfVarsFile: 'qa.tfvars'
+              terraformVersion: $(terraformVersion)
+              backendResourceGroup: '$(BACKEND_RESOURCE_GROUP_NAME)'
+              backendStorageAccount: '$(BACKEND_STORAGE_ACCOUNT_NAME)'
+              backendContainerName: '$(BACKEND_CONTAINER_NAME)'
+              backendStateKey: 'landing-zone/evo-taskers-common-qa.tfstate'
+              useWorkspaces: false
+              planOnly: true
+
+  - stage: Apply_QA
+    displayName: 'Apply - QA'
+    dependsOn: Plan_QA
+    condition: succeeded()
+    jobs:
+      - deployment: TerraformApply
+        displayName: 'Terraform Apply (QA)'
+        pool:
+          vmImage: 'ubuntu-latest'
+        environment: 'evo-taskers-qa'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                - template: templates/terraform-template.yml
+                  parameters:
+                    workingDirectory: $(workingDirectory)
+                    environment: 'qa'
+                    serviceConnection: '$(QA_SERVICE_CONNECTION)'
+                    tfVarsFile: 'qa.tfvars'
+                    terraformVersion: $(terraformVersion)
+                    backendResourceGroup: '$(BACKEND_RESOURCE_GROUP_NAME)'
+                    backendStorageAccount: '$(BACKEND_STORAGE_ACCOUNT_NAME)'
+                    backendContainerName: '$(BACKEND_CONTAINER_NAME)'
+                    backendStateKey: 'landing-zone/evo-taskers-common-qa.tfstate'
+                    useWorkspaces: false
+                    planOnly: false
+
+  # ============================================
+  # PRODUCTION ENVIRONMENT
+  # ============================================
+  - stage: Plan_Prod
+    displayName: 'Plan - Production'
+    dependsOn: []  # Can run independently
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - job: TerraformPlan
+        displayName: 'Terraform Plan (Prod)'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - template: templates/terraform-template.yml
+            parameters:
+              workingDirectory: $(workingDirectory)
+              environment: 'prod'
+              serviceConnection: '$(PROD_SERVICE_CONNECTION)'
+              tfVarsFile: 'prod.tfvars'
+              terraformVersion: $(terraformVersion)
+              backendResourceGroup: '$(BACKEND_RESOURCE_GROUP_NAME)'
+              backendStorageAccount: '$(BACKEND_STORAGE_ACCOUNT_NAME)'
+              backendContainerName: '$(BACKEND_CONTAINER_NAME)'
+              backendStateKey: 'landing-zone/evo-taskers-common-prod.tfstate'
+              useWorkspaces: false
+              planOnly: true
+
+  - stage: Apply_Prod
+    displayName: 'Apply - Production'
+    dependsOn: Plan_Prod
+    condition: succeeded()
+    jobs:
+      - deployment: TerraformApply
+        displayName: 'Terraform Apply (Prod)'
+        pool:
+          vmImage: 'ubuntu-latest'
+        environment: 'evo-taskers-prod'  # This will require manual approval in Azure DevOps
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                - template: templates/terraform-template.yml
+                  parameters:
+                    workingDirectory: $(workingDirectory)
+                    environment: 'prod'
+                    serviceConnection: '$(PROD_SERVICE_CONNECTION)'
+                    tfVarsFile: 'prod.tfvars'
+                    terraformVersion: $(terraformVersion)
+                    backendResourceGroup: '$(BACKEND_RESOURCE_GROUP_NAME)'
+                    backendStorageAccount: '$(BACKEND_STORAGE_ACCOUNT_NAME)'
+                    backendContainerName: '$(BACKEND_CONTAINER_NAME)'
+                    backendStateKey: 'landing-zone/evo-taskers-common-prod.tfstate'
+                    useWorkspaces: false
+                    planOnly: false
+

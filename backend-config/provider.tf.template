@@ -1,0 +1,31 @@
+# Provider Configuration Template
+# This file is used to configure the Azure provider without hardcoded subscription IDs
+# Values are injected from pipeline variables or environment variables
+
+terraform {
+  required_version = ">=1.2"
+  
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "~> 4.46"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.3"
+    }
+  }
+}
+
+provider "azurerm" {
+  # subscription_id is set via ARM_SUBSCRIPTION_ID environment variable
+  # This is provided by the service connection in Azure DevOps
+  features {
+    resource_group {
+      prevent_deletion_if_contains_resources = false
+    }
+  }
+}
+
+provider "random" {}
+

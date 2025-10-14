@@ -1,0 +1,298 @@
+# Application Deployments Pipeline
+# This pipeline deploys application workloads (Function Apps, Web Apps)
+# Prerequisites: Landing Zone must be deployed first
+#
+# This pipeline uses Terraform workspaces to manage multiple environments
+
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+  paths:
+    include:
+      - project/evo-taskers/automateddatafeed/*
+      - project/evo-taskers/dashboard/*
+      - project/evo-taskers/dashboardfrontend/*
+      - project/evo-taskers/sendgridfunction/*
+      - project/evo-taskers/unlockbookings/*
+      - project/evo-taskers/autoopenshorex/*
+      - modules/windows_function_app/*
+      - modules/linux_web_app/*
+      - pipelines/applications-pipeline.yml
+
+pr:
+  branches:
+    include:
+      - main
+      - develop
+  paths:
+    include:
+      - project/evo-taskers/automateddatafeed/*
+      - project/evo-taskers/dashboard/*
+      - project/evo-taskers/dashboardfrontend/*
+      - project/evo-taskers/sendgridfunction/*
+      - project/evo-taskers/unlockbookings/*
+      - project/evo-taskers/autoopenshorex/*
+
+variables:
+  - group: 'terraform-backend'
+  - group: 'evo-taskers-apps'
+  - name: terraformVersion
+    value: 'latest'
+
+parameters:
+  - name: deployAutomatedDataFeed
+    displayName: 'Deploy Automated Data Feed'
+    type: boolean
+    default: true
+  - name: deployDashboard
+    displayName: 'Deploy Dashboard API'
+    type: boolean
+    default: true
+  - name: deployDashboardFrontend
+    displayName: 'Deploy Dashboard Frontend'
+    type: boolean
+    default: true
+  - name: deploySendGrid
+    displayName: 'Deploy SendGrid Function'
+    type: boolean
+    default: true
+  - name: deployUnlockBookings
+    displayName: 'Deploy Unlock Bookings'
+    type: boolean
+    default: true
+  - name: deployAutoOpenShorex
+    displayName: 'Deploy Auto Open Shorex'
+    type: boolean
+    default: true
+
+stages:
+  # ============================================
+  # AUTOMATED DATA FEED APPLICATION
+  # ============================================
+  - ${{ if eq(parameters.deployAutomatedDataFeed, true) }}:
+    - stage: Plan_AutomatedDataFeed_Dev
+      displayName: 'Plan - Automated Data Feed (Dev)'
+      condition: or(eq(variables['Build.SourceBranch'], 'refs/heads/develop'), eq(variables['Build.Reason'], 'PullRequest'))
+      jobs:
+        - job: TerraformPlan
+          displayName: 'Terraform Plan'
+          pool:
+            vmImage: 'ubuntu-latest'
+          steps:
+            - template: templates/terraform-template.yml
+              parameters:
+                workingDirectory: '$(System.DefaultWorkingDirectory)/project/evo-taskers/automateddatafeed'
+                environment: 'dev'
+                serviceConnection: '$(DEV_SERVICE_CONNECTION)'
+                tfVarsFile: 'dev.tfvars'
+                terraformVersion: $(terraformVersion)
+                backendResourceGroup: '$(BACKEND_RESOURCE_GROUP_NAME)'
+                backendStorageAccount: '$(BACKEND_STORAGE_ACCOUNT_NAME)'
+                backendContainerName: '$(BACKEND_CONTAINER_NAME)'
+                backendStateKey: 'landing-zone/evo-taskers-automateddatafeed.tfstate'
+                useWorkspaces: true
+                planOnly: true
+
+    - stage: Apply_AutomatedDataFeed_Dev
+      displayName: 'Apply - Automated Data Feed (Dev)'
+      dependsOn: Plan_AutomatedDataFeed_Dev
+      condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/develop'), ne(variables['Build.Reason'], 'PullRequest'))
+      jobs:
+        - deployment: TerraformApply
+          displayName: 'Terraform Apply'
+          pool:
+            vmImage: 'ubuntu-latest'
+          environment: 'evo-taskers-automateddatafeed-dev'
+          strategy:
+            runOnce:
+              deploy:
+                steps:
+                  - checkout: self
+                  - template: templates/terraform-template.yml
+                    parameters:
+                      workingDirectory: '$(System.DefaultWorkingDirectory)/project/evo-taskers/automateddatafeed'
+                      environment: 'dev'
+                      serviceConnection: '$(DEV_SERVICE_CONNECTION)'
+                      tfVarsFile: 'dev.tfvars'
+                      terraformVersion: $(terraformVersion)
+                      backendResourceGroup: '$(BACKEND_RESOURCE_GROUP_NAME)'
+                      backendStorageAccount: '$(BACKEND_STORAGE_ACCOUNT_NAME)'
+                      backendContainerName: '$(BACKEND_CONTAINER_NAME)'
+                      backendStateKey: 'landing-zone/evo-taskers-automateddatafeed.tfstate'
+                      useWorkspaces: true
+                      planOnly: false
+
+    # QA Stage
+    - stage: Plan_AutomatedDataFeed_QA
+      displayName: 'Plan - Automated Data Feed (QA)'
+      dependsOn: Apply_AutomatedDataFeed_Dev
+      condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/develop'))
+      jobs:
+        - job: TerraformPlan
+          displayName: 'Terraform Plan'
+          pool:
+            vmImage: 'ubuntu-latest'
+          steps:
+            - template: templates/terraform-template.yml
+              parameters:
+                workingDirectory: '$(System.DefaultWorkingDirectory)/project/evo-taskers/automateddatafeed'
+                environment: 'qa'
+                serviceConnection: '$(QA_SERVICE_CONNECTION)'
+                tfVarsFile: 'qa.tfvars'
+                terraformVersion: $(terraformVersion)
+                backendResourceGroup: '$(BACKEND_RESOURCE_GROUP_NAME)'
+                backendStorageAccount: '$(BACKEND_STORAGE_ACCOUNT_NAME)'
+                backendContainerName: '$(BACKEND_CONTAINER_NAME)'
+                backendStateKey: 'landing-zone/evo-taskers-automateddatafeed.tfstate'
+                useWorkspaces: true
+                planOnly: true
+
+    - stage: Apply_AutomatedDataFeed_QA
+      displayName: 'Apply - Automated Data Feed (QA)'
+      dependsOn: Plan_AutomatedDataFeed_QA
+      condition: succeeded()
+      jobs:
+        - deployment: TerraformApply
+          displayName: 'Terraform Apply'
+          pool:
+            vmImage: 'ubuntu-latest'
+          environment: 'evo-taskers-automateddatafeed-qa'
+          strategy:
+            runOnce:
+              deploy:
+                steps:
+                  - checkout: self
+                  - template: templates/terraform-template.yml
+                    parameters:
+                      workingDirectory: '$(System.DefaultWorkingDirectory)/project/evo-taskers/automateddatafeed'
+                      environment: 'qa'
+                      serviceConnection: '$(QA_SERVICE_CONNECTION)'
+                      tfVarsFile: 'qa.tfvars'
+                      terraformVersion: $(terraformVersion)
+                      backendResourceGroup: '$(BACKEND_RESOURCE_GROUP_NAME)'
+                      backendStorageAccount: '$(BACKEND_STORAGE_ACCOUNT_NAME)'
+                      backendContainerName: '$(BACKEND_CONTAINER_NAME)'
+                      backendStateKey: 'landing-zone/evo-taskers-automateddatafeed.tfstate'
+                      useWorkspaces: true
+                      planOnly: false
+
+    # Production Stage
+    - stage: Plan_AutomatedDataFeed_Prod
+      displayName: 'Plan - Automated Data Feed (Prod)'
+      dependsOn: []
+      condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+      jobs:
+        - job: TerraformPlan
+          displayName: 'Terraform Plan'
+          pool:
+            vmImage: 'ubuntu-latest'
+          steps:
+            - template: templates/terraform-template.yml
+              parameters:
+                workingDirectory: '$(System.DefaultWorkingDirectory)/project/evo-taskers/automateddatafeed'
+                environment: 'prod'
+                serviceConnection: '$(PROD_SERVICE_CONNECTION)'
+                tfVarsFile: 'prod.tfvars'
+                terraformVersion: $(terraformVersion)
+                backendResourceGroup: '$(BACKEND_RESOURCE_GROUP_NAME)'
+                backendStorageAccount: '$(BACKEND_STORAGE_ACCOUNT_NAME)'
+                backendContainerName: '$(BACKEND_CONTAINER_NAME)'
+                backendStateKey: 'landing-zone/evo-taskers-automateddatafeed.tfstate'
+                useWorkspaces: true
+                planOnly: true
+
+    - stage: Apply_AutomatedDataFeed_Prod
+      displayName: 'Apply - Automated Data Feed (Prod)'
+      dependsOn: Plan_AutomatedDataFeed_Prod
+      condition: succeeded()
+      jobs:
+        - deployment: TerraformApply
+          displayName: 'Terraform Apply'
+          pool:
+            vmImage: 'ubuntu-latest'
+          environment: 'evo-taskers-automateddatafeed-prod'  # Requires approval
+          strategy:
+            runOnce:
+              deploy:
+                steps:
+                  - checkout: self
+                  - template: templates/terraform-template.yml
+                    parameters:
+                      workingDirectory: '$(System.DefaultWorkingDirectory)/project/evo-taskers/automateddatafeed'
+                      environment: 'prod'
+                      serviceConnection: '$(PROD_SERVICE_CONNECTION)'
+                      tfVarsFile: 'prod.tfvars'
+                      terraformVersion: $(terraformVersion)
+                      backendResourceGroup: '$(BACKEND_RESOURCE_GROUP_NAME)'
+                      backendStorageAccount: '$(BACKEND_STORAGE_ACCOUNT_NAME)'
+                      backendContainerName: '$(BACKEND_CONTAINER_NAME)'
+                      backendStateKey: 'landing-zone/evo-taskers-automateddatafeed.tfstate'
+                      useWorkspaces: true
+                      planOnly: false
+
+  # ============================================
+  # DASHBOARD FRONTEND APPLICATION
+  # ============================================
+  - ${{ if eq(parameters.deployDashboardFrontend, true) }}:
+    - stage: Plan_DashboardFrontend_Dev
+      displayName: 'Plan - Dashboard Frontend (Dev)'
+      condition: or(eq(variables['Build.SourceBranch'], 'refs/heads/develop'), eq(variables['Build.Reason'], 'PullRequest'))
+      jobs:
+        - job: TerraformPlan
+          displayName: 'Terraform Plan'
+          pool:
+            vmImage: 'ubuntu-latest'
+          steps:
+            - template: templates/terraform-template.yml
+              parameters:
+                workingDirectory: '$(System.DefaultWorkingDirectory)/project/evo-taskers/dashboardfrontend'
+                environment: 'dev'
+                serviceConnection: '$(DEV_SERVICE_CONNECTION)'
+                tfVarsFile: 'dev.tfvars'
+                terraformVersion: $(terraformVersion)
+                backendResourceGroup: '$(BACKEND_RESOURCE_GROUP_NAME)'
+                backendStorageAccount: '$(BACKEND_STORAGE_ACCOUNT_NAME)'
+                backendContainerName: '$(BACKEND_CONTAINER_NAME)'
+                backendStateKey: 'landing-zone/evo-taskers-dashboardfrontend.tfstate'
+                useWorkspaces: true
+                planOnly: true
+
+    - stage: Apply_DashboardFrontend_Dev
+      displayName: 'Apply - Dashboard Frontend (Dev)'
+      dependsOn: Plan_DashboardFrontend_Dev
+      condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/develop'), ne(variables['Build.Reason'], 'PullRequest'))
+      jobs:
+        - deployment: TerraformApply
+          displayName: 'Terraform Apply'
+          pool:
+            vmImage: 'ubuntu-latest'
+          environment: 'evo-taskers-dashboardfrontend-dev'
+          strategy:
+            runOnce:
+              deploy:
+                steps:
+                  - checkout: self
+                  - template: templates/terraform-template.yml
+                    parameters:
+                      workingDirectory: '$(System.DefaultWorkingDirectory)/project/evo-taskers/dashboardfrontend'
+                      environment: 'dev'
+                      serviceConnection: '$(DEV_SERVICE_CONNECTION)'
+                      tfVarsFile: 'dev.tfvars'
+                      terraformVersion: $(terraformVersion)
+                      backendResourceGroup: '$(BACKEND_RESOURCE_GROUP_NAME)'
+                      backendStorageAccount: '$(BACKEND_STORAGE_ACCOUNT_NAME)'
+                      backendContainerName: '$(BACKEND_CONTAINER_NAME)'
+                      backendStateKey: 'landing-zone/evo-taskers-dashboardfrontend.tfstate'
+                      useWorkspaces: true
+                      planOnly: false
+
+# Note: For brevity, additional applications follow the same pattern
+# You can add similar stages for:
+# - Dashboard API
+# - SendGrid Function
+# - Unlock Bookings
+# - Auto Open Shorex
+# Each follows the same Dev -> QA -> Prod promotion flow
+

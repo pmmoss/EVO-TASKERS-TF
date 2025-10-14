@@ -1,0 +1,216 @@
+# Example: Terraform Destroy Pipeline
+# ⚠️ DANGEROUS: This pipeline destroys infrastructure
+# Use with extreme caution and only when necessary
+
+trigger: none  # Never run automatically
+
+pr: none  # Never run on PRs
+
+parameters:
+  - name: environment
+    displayName: 'Environment to Destroy'
+    type: string
+    default: 'dev'
+    values:
+      - dev
+      - qa
+      - prod
+  
+  - name: application
+    displayName: 'Application to Destroy'
+    type: string
+    default: 'automateddatafeed'
+    values:
+      - common
+      - automateddatafeed
+      - dashboard
+      - dashboardfrontend
+      - sendgridfunction
+      - unlockbookings
+      - autoopenshorex
+  
+  - name: confirmDestroy
+    displayName: 'Type "DESTROY" to confirm'
+    type: string
+    default: ''
+
+variables:
+  - group: 'terraform-backend'
+  - group: 'evo-taskers-apps'
+  - name: terraformVersion
+    value: 'latest'
+  - name: workingDirectory
+    value: '$(System.DefaultWorkingDirectory)/project/evo-taskers/${{ parameters.application }}'
+  - name: serviceConnection
+    ${{ if eq(parameters.environment, 'dev') }}:
+      value: '$(DEV_SERVICE_CONNECTION)'
+    ${{ elseif eq(parameters.environment, 'qa') }}:
+      value: '$(QA_SERVICE_CONNECTION)'
+    ${{ else }}:
+      value: '$(PROD_SERVICE_CONNECTION)'
+
+stages:
+  - stage: Validate
+    displayName: 'Validate Destroy Request'
+    jobs:
+      - job: ValidateInput
+        displayName: 'Validate Input'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: Bash@3
+            displayName: 'Validate Confirmation'
+            inputs:
+              targetType: 'inline'
+              script: |
+                if [ "${{ parameters.confirmDestroy }}" != "DESTROY" ]; then
+                  echo "##vso[task.logissue type=error]Destroy confirmation not provided!"
+                  echo "You must type DESTROY in the confirmation parameter"
+                  exit 1
+                fi
+                
+                echo "⚠️  WARNING: This will DESTROY all resources for:"
+                echo "   Environment: ${{ parameters.environment }}"
+                echo "   Application: ${{ parameters.application }}"
+                echo ""
+                echo "Proceeding with destroy..."
+
+  - stage: Destroy
+    displayName: 'Destroy Infrastructure'
+    dependsOn: Validate
+    condition: succeeded()
+    jobs:
+      - deployment: TerraformDestroy
+        displayName: 'Terraform Destroy'
+        pool:
+          vmImage: 'ubuntu-latest'
+        environment: 'evo-taskers-${{ parameters.application }}-${{ parameters.environment }}'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                
+                - task: TerraformInstaller@1
+                  displayName: 'Install Terraform'
+                  inputs:
+                    terraformVersion: $(terraformVersion)
+
+                - task: AzureCLI@2
+                  displayName: 'Terraform Init'
+                  inputs:
+                    azureSubscription: $(serviceConnection)
+                    scriptType: 'bash'
+                    scriptLocation: 'inlineScript'
+                    inlineScript: |
+                      set -e
+                      
+                      # Create backend config
+                      cat > backend-config.tfvars << EOF
+                      resource_group_name  = "$(BACKEND_RESOURCE_GROUP_NAME)"
+                      storage_account_name = "$(BACKEND_STORAGE_ACCOUNT_NAME)"
+                      container_name       = "$(BACKEND_CONTAINER_NAME)"
+                      key                  = "landing-zone/evo-taskers-${{ parameters.application }}.tfstate"
+                      EOF
+                      
+                      terraform init -backend-config=backend-config.tfvars
+                    workingDirectory: $(workingDirectory)
+                    addSpnToEnvironment: true
+
+                - task: AzureCLI@2
+                  displayName: 'Select Workspace'
+                  condition: ne('${{ parameters.application }}', 'common')
+                  inputs:
+                    azureSubscription: $(serviceConnection)
+                    scriptType: 'bash'
+                    scriptLocation: 'inlineScript'
+                    inlineScript: |
+                      terraform workspace select ${{ parameters.environment }}
+                    workingDirectory: $(workingDirectory)
+                    addSpnToEnvironment: true
+
+                - task: AzureCLI@2
+                  displayName: 'Terraform Plan Destroy'
+                  inputs:
+                    azureSubscription: $(serviceConnection)
+                    scriptType: 'bash'
+                    scriptLocation: 'inlineScript'
+                    inlineScript: |
+                      set -e
+                      
+                      echo "⚠️  Planning destroy for ${{ parameters.environment }} environment..."
+                      
+                      terraform plan \
+                        -destroy \
+                        -var-file="${{ parameters.environment }}.tfvars" \
+                        -out=destroy.tfplan
+                      
+                      echo "=== Destroy Plan ==="
+                      terraform show destroy.tfplan
+                    workingDirectory: $(workingDirectory)
+                    addSpnToEnvironment: true
+
+                - task: AzureCLI@2
+                  displayName: 'Terraform Destroy'
+                  inputs:
+                    azureSubscription: $(serviceConnection)
+                    scriptType: 'bash'
+                    scriptLocation: 'inlineScript'
+                    inlineScript: |
+                      set -e
+                      
+                      echo "🗑️  Destroying infrastructure..."
+                      echo "Environment: ${{ parameters.environment }}"
+                      echo "Application: ${{ parameters.application }}"
+                      
+                      terraform apply -auto-approve destroy.tfplan
+                      
+                      echo "✅ Destroy completed"
+                    workingDirectory: $(workingDirectory)
+                    addSpnToEnvironment: true
+
+  - stage: Cleanup
+    displayName: 'Cleanup State'
+    dependsOn: Destroy
+    condition: succeeded()
+    jobs:
+      - job: CleanupWorkspace
+        displayName: 'Delete Workspace'
+        condition: ne('${{ parameters.application }}', 'common')
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - checkout: self
+          
+          - task: TerraformInstaller@1
+            displayName: 'Install Terraform'
+            inputs:
+              terraformVersion: $(terraformVersion)
+
+          - task: AzureCLI@2
+            displayName: 'Delete Workspace'
+            inputs:
+              azureSubscription: $(serviceConnection)
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                set -e
+                
+                # Create backend config
+                cat > backend-config.tfvars << EOF
+                resource_group_name  = "$(BACKEND_RESOURCE_GROUP_NAME)"
+                storage_account_name = "$(BACKEND_STORAGE_ACCOUNT_NAME)"
+                container_name       = "$(BACKEND_CONTAINER_NAME)"
+                key                  = "landing-zone/evo-taskers-${{ parameters.application }}.tfstate"
+                EOF
+                
+                terraform init -backend-config=backend-config.tfvars
+                
+                # Switch to default and delete the environment workspace
+                terraform workspace select default
+                terraform workspace delete ${{ parameters.environment }}
+                
+                echo "✅ Workspace ${{ parameters.environment }} deleted"
+              workingDirectory: $(workingDirectory)
+              addSpnToEnvironment: true
+

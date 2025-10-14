@@ -1,0 +1,10 @@
+# Backend Configuration Template
+# This file is used by Azure DevOps pipelines to configure the Terraform backend
+# Values are injected from pipeline variables
+
+resource_group_name  = "{{ BACKEND_RESOURCE_GROUP_NAME }}"
+storage_account_name = "{{ BACKEND_STORAGE_ACCOUNT_NAME }}"
+container_name       = "{{ BACKEND_CONTAINER_NAME }}"
+key                  = "{{ BACKEND_STATE_KEY }}"
+subscription_id      = "{{ BACKEND_SUBSCRIPTION_ID }}"
+
