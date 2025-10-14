@@ -5,7 +5,7 @@ parameters:
     type: string
   - name: AzureRM-Connection
     type: string
-    default: 'AzureRM-Connection'
+    default: 'EVO-Taskers-Sandbox'
 steps:
   - task: AzureCLI@2
     inputs:
