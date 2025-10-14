@@ -7,7 +7,7 @@ parameters:
     type: string
     default: 'AzureRM-Connection'
 steps:
-  - task:AzureCLI@2
+  - task: AzureCLI@2
     inputs:
       azureSubscription: ${parameters.AzureRM-Connection}  # <-- Use your actual service connection name
       scriptType: 'bash'
