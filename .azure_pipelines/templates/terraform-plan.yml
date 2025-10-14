@@ -16,5 +16,4 @@ steps:
       inlineScript: 
         terraform workspace select ${{ parameters.environment }} || terraform workspace new ${{ parameters.environment }}
         terraform plan -var-file="${{ parameters.environment }}.tfvars"
-    workingDirectory: ${{ parameters.workingDirectory }}
     displayName: 'Terraform Plan'
