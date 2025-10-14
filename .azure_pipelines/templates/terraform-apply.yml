@@ -9,7 +9,7 @@ parameters:
 steps:
   - task: AzureCLI@2
     inputs:
-      azureSubscription: ${parameters.AzureRM-Connection}  # <-- Use your actual service connection name
+      azureSubscription: ${{parameters.AzureRM-Connection}}  # <-- Use your actual service connection name
       scriptType: 'bash'
       scriptLocation: 'inlineScript'
       inlineScript: 
