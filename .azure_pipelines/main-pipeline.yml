@@ -33,7 +33,8 @@ stages:
               versionSpec: '3.x'
               addToPath: true
 
-          - task: TerraformInstaller@1
+          - task: ms-devlabs.custom-terraform-tasks.custom-terraform-installer-task.TerraformInstaller@0
+            displayName: 'Install Terraform latest'
             inputs:
               terraformVersion: 'latest'
 
