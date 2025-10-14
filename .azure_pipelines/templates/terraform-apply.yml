@@ -3,10 +3,17 @@ parameters:
     type: string
   - name: workingDirectory
     type: string
-
+  - name: AzureRM-Connection
+    type: string
+    default: 'EVO-Taskers-Sandbox'
 steps:
-  - script: |
-      terraform workspace select ${{ parameters.environment }}
-      terraform apply -var-file="${{ parameters.environment }}.tfvars" -auto-approve
+  - task: AzureCLI@2
+    inputs:
+      azureSubscription: ${parameters.AzureRM-Connection}  # <-- Use your actual service connection name
+      scriptType: 'bash'
+      scriptLocation: 'inlineScript'
+      inlineScript: 
+        terraform workspace select ${{ parameters.environment }}
+        terraform apply -var-file="${{ parameters.environment }}.tfvars" -auto-approve
     workingDirectory: ${{ parameters.workingDirectory }}
     displayName: 'Terraform Apply'

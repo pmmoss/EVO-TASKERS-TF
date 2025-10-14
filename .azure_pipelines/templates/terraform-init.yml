@@ -3,10 +3,17 @@ parameters:
     type: string
   - name: workingDirectory
     type: string
-
+  - name: AzureRM-Connection
+    type: string
+    default: 'AzureRM-Connection'
 steps:
-  - script: |
-      terraform init \
+  - task:AzureCLI@2
+    inputs:
+      azureSubscription: ${parameters.AzureRM-Connection}  # <-- Use your actual service connection name
+      scriptType: 'bash'
+      scriptLocation: 'inlineScript'
+      inlineScript: 
+        terraform init \
         -backend-config="resource_group_name=$(BACKEND_RESOURCE_GROUP_NAME)" \
         -backend-config="storage_account_name=$(BACKEND_STORAGE_ACCOUNT_NAME)" \
         -backend-config="container_name=$(BACKEND_CONTAINER_NAME)" \
