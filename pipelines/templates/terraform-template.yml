@@ -186,13 +186,15 @@ steps:
         PLAN_ARGS="-out=tfplan -detailed-exitcode"
         
         # Add tfvars file if specified
-        ${{ if ne(parameters.tfVarsFile, '') }}:
-          PLAN_ARGS="$PLAN_ARGS -var-file=${{ parameters.tfVarsFile }}"
+        TFVARS_FILE="${{ parameters.tfVarsFile }}"
+        if [ -n "$TFVARS_FILE" ]; then
+          PLAN_ARGS="$PLAN_ARGS -var-file=$TFVARS_FILE"
         fi
         
         # Add additional tf vars if specified
-        ${{ if ne(parameters.additionalTfVars, '') }}:
-          PLAN_ARGS="$PLAN_ARGS ${{ parameters.additionalTfVars }}"
+        ADDITIONAL_VARS="${{ parameters.additionalTfVars }}"
+        if [ -n "$ADDITIONAL_VARS" ]; then
+          PLAN_ARGS="$PLAN_ARGS $ADDITIONAL_VARS"
         fi
         
         echo "Running: terraform plan $PLAN_ARGS"
