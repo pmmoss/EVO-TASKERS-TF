@@ -17,7 +17,6 @@ variables:
     type: string
     value: 'project/${{ parameters.projectName }}/${{ parameters.appName }}'
   - name: AzureRM-Connection
-    type: string
     default: 'EVO-Taskers-Sandbox'
 stages:
 - stage: Plan
