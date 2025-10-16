@@ -13,8 +13,7 @@ variables:
   - group: 'terraform-backend'
   - name: workingDirectory
     value: 'project/${{ parameters.projectName }}/${{ parameters.appName }}'
-  # - name: AzureRMConnection
-  #   value: 'EVO-Taskers-Sandbox'  # Your WIF service connection
+
 
 stages:
 - stage: Plan
@@ -26,49 +25,113 @@ stages:
       inputs:
         terraformVersion: '1.5.0'  # Or latest
 
-    - task: TerraformTaskV4@5
+    - task: AzureCLI@2
+      displayName: 'Set OIDC Auth Vars'
+      name: setAuthVars  # Names the step so vars are accessible downstream
+      inputs:
+        azureSubscription: ${{ variables.AzureRMConnection }}  # Your WIF service connection
+        addSpnToEnvironment: true
+        scriptType: pscore  # PowerShell Core for cross-platform
+        scriptLocation: inlineScript
+        inlineScript: |
+          Write-Host "##vso[task.setvariable variable=ARM_USE_OIDC;isOutput=true]true"
+          Write-Host "##vso[task.setvariable variable=ARM_USE_AZUREAD;isOutput=true]true"
+          Write-Host "##vso[task.setvariable variable=ARM_OIDC_TOKEN;isOutput=true]$env:idToken"
+          Write-Host "##vso[task.setvariable variable=ARM_CLIENT_ID;isOutput=true]$env:servicePrincipalId"
+          Write-Host "##vso[task.setvariable variable=ARM_TENANT_ID;isOutput=true]$env:tenantId"
+          $subId = az account show --query id -o tsv
+          Write-Host "##vso[task.setvariable variable=ARM_SUBSCRIPTION_ID;isOutput=true]$subId"
+      env:
+        SYSTEM_ACCESSTOKEN: $(System.AccessToken)  # For token requests if needed
+
+    - task: Bash@3
       displayName: 'Terraform Init'
       inputs:
-        provider: 'azurerm'
-        command: 'init'
-        workingDirectory: ${{variables.workingDirectory}}
-        backendServiceArm: 'EVO-Taskers-Sandbox'  # WIF service connection (handles backend auth)
-        backendAzureRmResourceGroupName: ${{variables.BACKEND_RESOURCE_GROUP_NAME}}  # Your state RG
-        backendAzureRmStorageAccountName: ${{variables.BACKEND_STORAGE_ACCOUNT_NAME}}    # Your storage account
-        backendAzureRmContainerName: ${{variables.BACKEND_CONTAINER_NAME}}           # Container
-        backendAzureRmKey: '${{ parameters.projectName }}-${{ parameters.appName }}-${{ parameters.environment }}.tfstate'           # State file key
+        targetType: 'inline'
+        workingDirectory: ${{ variables.workingDirectory }}
+        script: |
+          terraform init \
+            -backend-config="resource_group_name=${{ variables.BACKEND_RESOURCE_GROUP_NAME }}" \
+            -backend-config="storage_account_name=${{ variables.BACKEND_STORAGE_ACCOUNT_NAME }}" \
+            -backend-config="container_name=${{ variables.BACKEND_CONTAINER_NAME }}" \
+            -backend-config="key=${{ parameters.projectName }}-${{ parameters.appName }}-${{ parameters.environment }}.tfstate"
       env:
-        ARM_USE_OIDC: true  # Enables OIDC/WIF auth (replaces ARM_USE_AZUREAD)
+        ARM_USE_OIDC: $(setAuthVars.ARM_USE_OIDC)
+        ARM_USE_AZUREAD: $(setAuthVars.ARM_USE_AZUREAD)
+        ARM_OIDC_TOKEN: $(setAuthVars.ARM_OIDC_TOKEN)
+        ARM_CLIENT_ID: $(setAuthVars.ARM_CLIENT_ID)
+        ARM_TENANT_ID: $(setAuthVars.ARM_TENANT_ID)
+        ARM_SUBSCRIPTION_ID: $(setAuthVars.ARM_SUBSCRIPTION_ID)
 
-    - task: TerraformTaskV4@5
+    - task: Bash@3
       displayName: 'Terraform Plan'
       inputs:
-        provider: 'azurerm'
-        command: 'plan'
-        workingDirectory: ${{variables.workingDirectory}}
-        environmentServiceNameAzureRM: ${{ variables.AzureRMConnection }}  # WIF service connection (handles provider auth)
-        commandOptions: '-out=tfplan -var-file="${{ parameters.environment }}.tfvars"'  # Dynamic vars file
+        targetType: 'inline'
+        workingDirectory: ${{ variables.workingDirectory }}
+        script: terraform plan -out=tfplan -var-file="${{ parameters.environment }}.tfvars"
       env:
-        ARM_USE_OIDC: true  # Enables OIDC/WIF auth
+        ARM_USE_OIDC: $(setAuthVars.ARM_USE_OIDC)
+        ARM_USE_AZUREAD: $(setAuthVars.ARM_USE_AZUREAD)
+        ARM_OIDC_TOKEN: $(setAuthVars.ARM_OIDC_TOKEN)
+        ARM_CLIENT_ID: $(setAuthVars.ARM_CLIENT_ID)
+        ARM_TENANT_ID: $(setAuthVars.ARM_TENANT_ID)
+        ARM_SUBSCRIPTION_ID: $(setAuthVars.ARM_SUBSCRIPTION_ID)
+      name: terraformPlan  # For condition in Apply
+
+    # Optional: Publish plan as artifact for Apply stage
+    - task: PublishPipelineArtifact@1
+      inputs:
+        targetPath: '$(Pipeline.Workspace)/${{ variables.workingDirectory }}/tfplan'
+        artifact: 'tfplan'
+        publishLocation: 'pipeline'
 
 - stage: Apply
   displayName: 'Terraform Apply'
   dependsOn: Plan
-  condition: succeeded()
+  condition: and(succeeded(), eq(variables.terraformPlan.changesPresent, 'true'))  # Only if changes
   jobs:
   - deployment: Apply
-    environment: '${{parameters.projectName}}-${{parameters.environment}}'  # Azure DevOps environment for approvals
+    environment: '${{ parameters.projectName }}-${{ parameters.environment }}'
     strategy:
       runOnce:
         deploy:
           steps:
-          - task: TerraformTaskV4@5
+          - task: DownloadPipelineArtifact@2
+            inputs:
+              buildType: 'current'
+              artifactName: 'tfplan'
+              targetPath: '$(Pipeline.Workspace)/${{ variables.workingDirectory }}'
+
+          - task: AzureCLI@2
+            displayName: 'Set OIDC Auth Vars (Apply)'
+            name: setAuthVarsApply
+            inputs:
+              azureSubscription: ${{ variables.AzureRMConnection }}
+              addSpnToEnvironment: true
+              scriptType: pscore
+              scriptLocation: inlineScript
+              inlineScript: |
+                # Same script as in Plan stage
+                Write-Host "##vso[task.setvariable variable=ARM_USE_OIDC;isOutput=true]true"
+                Write-Host "##vso[task.setvariable variable=ARM_USE_AZUREAD;isOutput=true]true"
+                Write-Host "##vso[task.setvariable variable=ARM_OIDC_TOKEN;isOutput=true]$env:idToken"
+                Write-Host "##vso[task.setvariable variable=ARM_CLIENT_ID;isOutput=true]$env:servicePrincipalId"
+                Write-Host "##vso[task.setvariable variable=ARM_TENANT_ID;isOutput=true]$env:tenantId"
+                $subId = az account show --query id -o tsv
+                Write-Host "##vso[task.setvariable variable=ARM_SUBSCRIPTION_ID;isOutput=true]$subId"
+            env:
+              SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+
+          - task: Bash@3
             displayName: 'Terraform Apply'
             inputs:
-              provider: 'azurerm'
-              command: 'apply'
-              workingDirectory: ${{variables.workingDirectory}}
-              environmentServiceNameAzureRM: ${{ variables.AzureRMConnection }}  # WIF service connection
-              commandOptions: 'tfplan -auto-approve -var-file="${{ parameters.environment }}.tfvars"'  # Dynamic vars file
+              targetType: 'inline'
+              workingDirectory: ${{ variables.workingDirectory }}
+              script: terraform apply tfplan -auto-approve -var-file="${{ parameters.environment }}.tfvars"
             env:
-              ARM_USE_OIDC: true  # Enables OIDC/WIF auth (with token refresh in v5)
+              ARM_USE_OIDC: $(setAuthVarsApply.ARM_USE_OIDC)
+              ARM_USE_AZUREAD: $(setAuthVarsApply.ARM_USE_AZUREAD)
+              ARM_OIDC_TOKEN: $(setAuthVarsApply.ARM_OIDC_TOKEN)
+              ARM_CLIENT_ID: $(setAuthVarsApply.ARM_CLIENT_ID)
+              ARM_TENANT_ID: $(setAuthVarsApply.ARM_TENANT_ID)
+              ARM_SUBSCRIPTION_ID: $(setAuthVarsApply.ARM_SUBSCRIPTION_ID)
