@@ -28,7 +28,7 @@ stages:
       displayName: 'Set OIDC Auth Vars'
       name: setAuthVars  # Names the step so vars are accessible downstream
       inputs:
-        azureSubscription: ${{ variables.AzureRMConnection }}  # Your WIF service connection
+        azureSubscription: 'EVO-Taskers-Sandbox' # Your WIF service connection
         scriptType: pscore  # PowerShell Core for cross-platform
         scriptLocation: inlineScript
         inlineScript: |
@@ -42,7 +42,7 @@ stages:
     - task: AzureCLI@2
       displayName: 'Verify WIF Auth'
       inputs:
-        azureSubscription: ${{ variables.AzureRMConnection }}
+        azureSubscription: 'EVO-Taskers-Sandbox'
         scriptLocation: inlineScript
         inlineScript: |
           Write-Host "ARM_CLIENT_ID: $env:ARM_CLIENT_ID"
@@ -111,7 +111,7 @@ stages:
             displayName: 'Set OIDC Auth Vars (Apply)'
             name: setAuthVarsApply
             inputs:
-              azureSubscription: ${{ variables.AzureRMConnection }}
+              azureSubscription: 'EVO-Taskers-Sandbox'
               scriptType: pscore
               scriptLocation: inlineScript
               inlineScript: |
