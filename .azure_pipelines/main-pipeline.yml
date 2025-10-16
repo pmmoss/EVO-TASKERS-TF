@@ -13,8 +13,8 @@ variables:
   - group: 'terraform-backend'
   - name: workingDirectory
     value: 'project/${{ parameters.projectName }}/${{ parameters.appName }}'
-  - name: AzureRMConnection
-    value: 'EVO-Taskers-Sandbox'  # Your WIF service connection
+  # - name: AzureRMConnection
+  #   value: 'EVO-Taskers-Sandbox'  # Your WIF service connection
 
 stages:
 - stage: Plan
