@@ -14,7 +14,6 @@ variables:
   - name: workingDirectory
     value: 'project/${{ parameters.projectName }}/${{ parameters.appName }}'
 
-
 stages:
 - stage: Plan
   displayName: 'Terraform Plan'
@@ -30,19 +29,15 @@ stages:
       name: setAuthVars  # Names the step so vars are accessible downstream
       inputs:
         azureSubscription: ${{ variables.AzureRMConnection }}  # Your WIF service connection
-        addSpnToEnvironment: true
         scriptType: pscore  # PowerShell Core for cross-platform
         scriptLocation: inlineScript
         inlineScript: |
           Write-Host "##vso[task.setvariable variable=ARM_USE_OIDC;isOutput=true]true"
-          Write-Host "##vso[task.setvariable variable=ARM_USE_AZUREAD;isOutput=true]true"
-          Write-Host "##vso[task.setvariable variable=ARM_OIDC_TOKEN;isOutput=true]$env:idToken"
-          Write-Host "##vso[task.setvariable variable=ARM_CLIENT_ID;isOutput=true]$env:servicePrincipalId"
-          Write-Host "##vso[task.setvariable variable=ARM_TENANT_ID;isOutput=true]$env:tenantId"
+          Write-Host "##vso[task.setvariable variable=ARM_OIDC_TOKEN;isOutput=true]$env:AZURE_FEDERATED_TOKEN"
+          Write-Host "##vso[task.setvariable variable=ARM_CLIENT_ID;isOutput=true]$env:ARM_CLIENT_ID"
+          Write-Host "##vso[task.setvariable variable=ARM_TENANT_ID;isOutput=true]$env:ARM_TENANT_ID"
           $subId = az account show --query id -o tsv
           Write-Host "##vso[task.setvariable variable=ARM_SUBSCRIPTION_ID;isOutput=true]$subId"
-      env:
-        SYSTEM_ACCESSTOKEN: $(System.AccessToken)  # For token requests if needed
 
     - task: Bash@3
       displayName: 'Terraform Init'
@@ -57,7 +52,6 @@ stages:
             -backend-config="key=${{ parameters.projectName }}-${{ parameters.appName }}-${{ parameters.environment }}.tfstate"
       env:
         ARM_USE_OIDC: $(setAuthVars.ARM_USE_OIDC)
-        ARM_USE_AZUREAD: $(setAuthVars.ARM_USE_AZUREAD)
         ARM_OIDC_TOKEN: $(setAuthVars.ARM_OIDC_TOKEN)
         ARM_CLIENT_ID: $(setAuthVars.ARM_CLIENT_ID)
         ARM_TENANT_ID: $(setAuthVars.ARM_TENANT_ID)
@@ -71,7 +65,6 @@ stages:
         script: terraform plan -out=tfplan -var-file="${{ parameters.environment }}.tfvars"
       env:
         ARM_USE_OIDC: $(setAuthVars.ARM_USE_OIDC)
-        ARM_USE_AZUREAD: $(setAuthVars.ARM_USE_AZUREAD)
         ARM_OIDC_TOKEN: $(setAuthVars.ARM_OIDC_TOKEN)
         ARM_CLIENT_ID: $(setAuthVars.ARM_CLIENT_ID)
         ARM_TENANT_ID: $(setAuthVars.ARM_TENANT_ID)
@@ -107,20 +100,15 @@ stages:
             name: setAuthVarsApply
             inputs:
               azureSubscription: ${{ variables.AzureRMConnection }}
-              addSpnToEnvironment: true
               scriptType: pscore
               scriptLocation: inlineScript
               inlineScript: |
-                # Same script as in Plan stage
                 Write-Host "##vso[task.setvariable variable=ARM_USE_OIDC;isOutput=true]true"
-                Write-Host "##vso[task.setvariable variable=ARM_USE_AZUREAD;isOutput=true]true"
-                Write-Host "##vso[task.setvariable variable=ARM_OIDC_TOKEN;isOutput=true]$env:idToken"
-                Write-Host "##vso[task.setvariable variable=ARM_CLIENT_ID;isOutput=true]$env:servicePrincipalId"
-                Write-Host "##vso[task.setvariable variable=ARM_TENANT_ID;isOutput=true]$env:tenantId"
+                Write-Host "##vso[task.setvariable variable=ARM_OIDC_TOKEN;isOutput=true]$env:AZURE_FEDERATED_TOKEN"
+                Write-Host "##vso[task.setvariable variable=ARM_CLIENT_ID;isOutput=true]$env:ARM_CLIENT_ID"
+                Write-Host "##vso[task.setvariable variable=ARM_TENANT_ID;isOutput=true]$env:ARM_TENANT_ID"
                 $subId = az account show --query id -o tsv
                 Write-Host "##vso[task.setvariable variable=ARM_SUBSCRIPTION_ID;isOutput=true]$subId"
-            env:
-              SYSTEM_ACCESSTOKEN: $(System.AccessToken)
 
           - task: Bash@3
             displayName: 'Terraform Apply'
@@ -130,7 +118,6 @@ stages:
               script: terraform apply tfplan -auto-approve -var-file="${{ parameters.environment }}.tfvars"
             env:
               ARM_USE_OIDC: $(setAuthVarsApply.ARM_USE_OIDC)
-              ARM_USE_AZUREAD: $(setAuthVarsApply.ARM_USE_AZUREAD)
               ARM_OIDC_TOKEN: $(setAuthVarsApply.ARM_OIDC_TOKEN)
               ARM_CLIENT_ID: $(setAuthVarsApply.ARM_CLIENT_ID)
               ARM_TENANT_ID: $(setAuthVarsApply.ARM_TENANT_ID)
