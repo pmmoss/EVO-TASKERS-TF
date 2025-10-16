@@ -18,7 +18,7 @@ variables:
   - group: 'terraform-backend'
 
 stages:
-  - stage: Deploy
+  - stage: Deploy_Common
     displayName: 'Deploy to ${{ parameters.environment }}'
     jobs:
       - job: Terraform
@@ -55,7 +55,7 @@ stages:
   - stage: DeployApp
     displayName: 'Deploy App Resources'
     jobs:
-      - job: DeployApp
+      - job: Deploy_${{ parameters.appName }}
         displayName: 'Deploy App Resources'
         pool:
           vmImage: 'ubuntu-latest'
