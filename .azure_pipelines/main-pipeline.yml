@@ -1,4 +1,3 @@
-
 parameters:
   - name: environment
     type: string
@@ -31,13 +30,13 @@ stages:
         provider: 'azurerm'
         command: 'init'
         workingDirectory: ${{variables.workingDirectory}}
-        backendServiceArm: ${{variables.AzureRM-Connection}}  # Your WIF service connection
+        backendServiceArm: ${{variables.AzureRM-Connection}}  # WIF service connection from var group
         backendAzureRmResourceGroupName: ${{variables.BACKEND_RESOURCE_GROUP_NAME}}  # Your state RG
         backendAzureRmStorageAccountName: ${{variables.BACKEND_STORAGE_ACCOUNT_NAME}}    # Your storage account
         backendAzureRmContainerName: ${{variables.BACKEND_CONTAINER_NAME}}           # Container
         backendAzureRmKey: '${{ parameters.projectName }}-${{ parameters.appName }}-${{ parameters.environment }}.tfstate'           # State file key
       env:
-        ARM_USE_AZUREAD: true
+        ARM_USE_AZUREAD: true  # Enables WIF auth
 
     - task: TerraformTaskV4@4
       displayName: 'Terraform Plan'
@@ -45,10 +44,10 @@ stages:
         provider: 'azurerm'
         command: 'plan'
         workingDirectory: ${{variables.workingDirectory}}
-        environmentServiceNameAzureRM: ${{variables.AzureRM-Connection}}  # Your WIF service connection
+        environmentServiceNameAzureRM: ${{variables.AzureRM-Connection}}  # WIF service connection from var group
         commandOptions: '-out=tfplan -var-file="${{ parameters.environment }}.tfvars"'  # Dynamic vars file
       env:
-        ARM_USE_AZUREAD: true
+        ARM_USE_AZUREAD: true  # Enables WIF auth
 
 - stage: Apply
   displayName: 'Terraform Apply'
@@ -56,7 +55,7 @@ stages:
   condition: succeeded()
   jobs:
   - deployment: Apply
-    environment: '${{parameters.projectName}}-${{parameters.environment}}'  # Azure DevOps environment for approvals (removed leading '-')
+    environment: '${{parameters.projectName}}-${{parameters.environment}}'  # Azure DevOps environment for approvals
     strategy:
       runOnce:
         deploy:
@@ -67,7 +66,7 @@ stages:
               provider: 'azurerm'
               command: 'apply'
               workingDirectory: ${{variables.workingDirectory}}
-              environmentServiceNameAzureRM: ${{variables.AzureRM-Connection}}
+              environmentServiceNameAzureRM: ${{variables.AzureRM-Connection}}  # WIF service connection from var group
               commandOptions: 'tfplan -auto-approve -var-file="${{ parameters.environment }}.tfvars"'  # Dynamic vars file
             env:
-              ARM_USE_AZUREAD: true
+              ARM_USE_AZUREAD: true  # Enables WIF auth
