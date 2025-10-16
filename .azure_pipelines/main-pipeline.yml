@@ -14,8 +14,6 @@ variables:
   - group: 'terraform-backend'
   - name: workingDirectory
     value: 'project/${{ parameters.projectName }}/${{ parameters.appName }}'
-  - name: AzureRM-Connection
-    value: 'EVO-Taskers-Sandbox'
 
 stages:
 - stage: Plan
