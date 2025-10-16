@@ -7,17 +7,18 @@ parameters:
     type: string
     default: 'EVO-Taskers-Sandbox'
 
-variables:
-- group: 'terraform-backend'
+
 steps:
   - task: TerraformTaskV4@4
-  displayName: Initialize Terraform
-  workingDirectory: ${{parameters.workingDirectory}}
-  inputs:
-    provider: 'azurerm'
-    command: 'init'
-    backendServiceArm: ${{parameters.AzureRM-Connection}}
-    backendAzureRmResourceGroupName: ${{variables.BACKEND_RESOURCE_GROUP_NAME}}
-    backendAzureRmStorageAccountName: ${{variables.BACKEND_STORAGE_ACCOUNT_NAME}}
-    backendAzureRmContainerName: ${{variables.BACKEND_CONTAINER_NAME}}
-    backendAzureRmKey: ${{variables.BACKEND_CONTAINER_NAME}}
+    displayName: Initialize Terraform
+    variables:
+      - group: 'terraform-backend'
+    workingDirectory: ${{parameters.workingDirectory}}
+    inputs:
+      provider: 'azurerm'
+      command: 'init'
+      backendServiceArm: ${{parameters.AzureRM-Connection}}
+      backendAzureRmResourceGroupName: ${{variables.BACKEND_RESOURCE_GROUP_NAME}}
+      backendAzureRmStorageAccountName: ${{variables.BACKEND_STORAGE_ACCOUNT_NAME}}
+      backendAzureRmContainerName: ${{variables.BACKEND_CONTAINER_NAME}}
+      backendAzureRmKey: ${{variables.BACKEND_CONTAINER_NAME}}
