@@ -2,7 +2,7 @@
 # Uncomment this module if you need a Function App for background processing
 
 module "function_app" {
-  source = "../../../../modules/windows_function_app"
+  source = "../../../modules/windows_function_app"
   
   # Application identifier
   app_name = var.app_name
