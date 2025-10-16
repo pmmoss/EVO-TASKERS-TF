@@ -43,13 +43,66 @@ stages:
         addSpnToEnvironment: true
         inlineScript: |
           echo "Setting authentication variables..."
-          echo "##vso[task.setvariable variable=ARM_USE_OIDC;isOutput=true]true"
-          echo "##vso[task.setvariable variable=ARM_OIDC_TOKEN;isOutput=true]$servicePrincipalKey"
+          
+          # For Workload Identity Federation (OIDC)
+          if [ -n "$idToken" ]; then
+            echo "Using Workload Identity Federation (OIDC)"
+            echo "##vso[task.setvariable variable=ARM_USE_OIDC;isOutput=true]true"
+            echo "##vso[task.setvariable variable=ARM_OIDC_TOKEN;isOutput=true]$idToken"
+          elif [ -n "$servicePrincipalKey" ]; then
+            echo "Using Service Principal with secret"
+            echo "##vso[task.setvariable variable=ARM_USE_OIDC;isOutput=true]false"
+            echo "##vso[task.setvariable variable=ARM_CLIENT_SECRET;isOutput=true]$servicePrincipalKey"
+          fi
+          
           echo "##vso[task.setvariable variable=ARM_CLIENT_ID;isOutput=true]$servicePrincipalId"
           echo "##vso[task.setvariable variable=ARM_TENANT_ID;isOutput=true]$tenantId"
+          
           SUB_ID=$(az account show --query id -o tsv)
           echo "##vso[task.setvariable variable=ARM_SUBSCRIPTION_ID;isOutput=true]$SUB_ID"
+          
+          echo "Client ID: $servicePrincipalId"
+          echo "Tenant ID: $tenantId"
+          echo "Subscription ID: $SUB_ID"
           echo "Authentication configured successfully"
+
+    - task: Bash@3
+      displayName: 'Verify Authentication Variables'
+      inputs:
+        targetType: 'inline'
+        script: |
+          echo "=== Authentication Debug Info ==="
+          echo "ARM_USE_OIDC: ${ARM_USE_OIDC}"
+          echo "ARM_CLIENT_ID: ${ARM_CLIENT_ID}"
+          echo "ARM_TENANT_ID: ${ARM_TENANT_ID}"
+          echo "ARM_SUBSCRIPTION_ID: ${ARM_SUBSCRIPTION_ID}"
+          echo "ARM_USE_CLI: ${ARM_USE_CLI}"
+          
+          if [ -n "${ARM_OIDC_TOKEN}" ]; then
+            echo "ARM_OIDC_TOKEN: [SET - length: ${#ARM_OIDC_TOKEN}]"
+          else
+            echo "ARM_OIDC_TOKEN: [NOT SET]"
+          fi
+          
+          if [ -n "${ARM_CLIENT_SECRET}" ]; then
+            echo "ARM_CLIENT_SECRET: [SET - length: ${#ARM_CLIENT_SECRET}]"
+          else
+            echo "ARM_CLIENT_SECRET: [NOT SET]"
+          fi
+          
+          echo "================================="
+      env:
+        ARM_USE_OIDC: $(setAuthVars.ARM_USE_OIDC)
+        ARM_OIDC_TOKEN: $(setAuthVars.ARM_OIDC_TOKEN)
+        ARM_CLIENT_ID: $(setAuthVars.ARM_CLIENT_ID)
+        ARM_TENANT_ID: $(setAuthVars.ARM_TENANT_ID)
+        ARM_SUBSCRIPTION_ID: $(setAuthVars.ARM_SUBSCRIPTION_ID)
+        ARM_CLIENT_SECRET: $(setAuthVars.ARM_CLIENT_SECRET)
+        ARM_CLIENT_SECRET: $(setAuthVars.ARM_CLIENT_SECRET)
+        ARM_USE_CLI: false
+      name: terraformPlan
+        ARM_CLIENT_SECRET: $(setAuthVars.ARM_CLIENT_SECRET)
+        ARM_USE_CLI: false
 
     - task: Bash@3
       displayName: 'Terraform Init'
@@ -60,6 +113,9 @@ stages:
           set -e
           echo "Initializing Terraform..."
           echo "Working Directory: $(pwd)"
+          
+          # Explicitly disable Azure CLI authentication
+          export ARM_USE_CLI=false
           
           terraform init \
             -backend-config="resource_group_name=$(BACKEND_RESOURCE_GROUP_NAME)" \
@@ -74,6 +130,8 @@ stages:
         ARM_CLIENT_ID: $(setAuthVars.ARM_CLIENT_ID)
         ARM_TENANT_ID: $(setAuthVars.ARM_TENANT_ID)
         ARM_SUBSCRIPTION_ID: $(setAuthVars.ARM_SUBSCRIPTION_ID)
+        ARM_CLIENT_SECRET: $(setAuthVars.ARM_CLIENT_SECRET)
+        ARM_USE_CLI: false
 
     - task: Bash@3
       displayName: 'Terraform Validate'
@@ -125,7 +183,8 @@ stages:
         ARM_CLIENT_ID: $(setAuthVars.ARM_CLIENT_ID)
         ARM_TENANT_ID: $(setAuthVars.ARM_TENANT_ID)
         ARM_SUBSCRIPTION_ID: $(setAuthVars.ARM_SUBSCRIPTION_ID)
-      name: terraformPlan
+        ARM_CLIENT_SECRET: $(setAuthVars.ARM_CLIENT_SECRET)
+        ARM_USE_CLI: false
 
     - task: Bash@3
       displayName: 'Show Terraform Plan'
@@ -190,13 +249,64 @@ stages:
               addSpnToEnvironment: true
               inlineScript: |
                 echo "Setting authentication variables for apply..."
-                echo "##vso[task.setvariable variable=ARM_USE_OIDC;isOutput=true]true"
-                echo "##vso[task.setvariable variable=ARM_OIDC_TOKEN;isOutput=true]$servicePrincipalKey"
+                
+                # For Workload Identity Federation (OIDC)
+                if [ -n "$idToken" ]; then
+                  echo "Using Workload Identity Federation (OIDC)"
+                  echo "##vso[task.setvariable variable=ARM_USE_OIDC;isOutput=true]true"
+                  echo "##vso[task.setvariable variable=ARM_OIDC_TOKEN;isOutput=true]$idToken"
+                elif [ -n "$servicePrincipalKey" ]; then
+                  echo "Using Service Principal with secret"
+                  echo "##vso[task.setvariable variable=ARM_USE_OIDC;isOutput=true]false"
+                  echo "##vso[task.setvariable variable=ARM_CLIENT_SECRET;isOutput=true]$servicePrincipalKey"
+                fi
+                
                 echo "##vso[task.setvariable variable=ARM_CLIENT_ID;isOutput=true]$servicePrincipalId"
                 echo "##vso[task.setvariable variable=ARM_TENANT_ID;isOutput=true]$tenantId"
+                
                 SUB_ID=$(az account show --query id -o tsv)
                 echo "##vso[task.setvariable variable=ARM_SUBSCRIPTION_ID;isOutput=true]$SUB_ID"
+                
+                echo "Client ID: $servicePrincipalId"
+                echo "Tenant ID: $tenantId"
+                echo "Subscription ID: $SUB_ID"
                 echo "Authentication configured successfully"
+
+          - task: Bash@3
+            displayName: 'Verify Authentication Variables (Apply)'
+            inputs:
+              targetType: 'inline'
+              script: |
+                echo "=== Authentication Debug Info (Apply) ==="
+                echo "ARM_USE_OIDC: ${ARM_USE_OIDC}"
+                echo "ARM_CLIENT_ID: ${ARM_CLIENT_ID}"
+                echo "ARM_TENANT_ID: ${ARM_TENANT_ID}"
+                echo "ARM_SUBSCRIPTION_ID: ${ARM_SUBSCRIPTION_ID}"
+                echo "ARM_USE_CLI: ${ARM_USE_CLI}"
+                
+                if [ -n "${ARM_OIDC_TOKEN}" ]; then
+                  echo "ARM_OIDC_TOKEN: [SET - length: ${#ARM_OIDC_TOKEN}]"
+                else
+                  echo "ARM_OIDC_TOKEN: [NOT SET]"
+                fi
+                
+                if [ -n "${ARM_CLIENT_SECRET}" ]; then
+                  echo "ARM_CLIENT_SECRET: [SET - length: ${#ARM_CLIENT_SECRET}]"
+                else
+                  echo "ARM_CLIENT_SECRET: [NOT SET]"
+                fi
+                
+                echo "================================="
+            env:
+              ARM_USE_OIDC: $(setAuthVarsApply.ARM_USE_OIDC)
+              ARM_OIDC_TOKEN: $(setAuthVarsApply.ARM_OIDC_TOKEN)
+              ARM_CLIENT_ID: $(setAuthVarsApply.ARM_CLIENT_ID)
+              ARM_TENANT_ID: $(setAuthVarsApply.ARM_TENANT_ID)
+              ARM_SUBSCRIPTION_ID: $(setAuthVarsApply.ARM_SUBSCRIPTION_ID)
+              ARM_CLIENT_SECRET: $(setAuthVarsApply.ARM_CLIENT_SECRET)
+              ARM_USE_CLI: false
+              ARM_CLIENT_SECRET: $(setAuthVarsApply.ARM_CLIENT_SECRET)
+              ARM_USE_CLI: false
 
           - task: Bash@3
             displayName: 'Terraform Init (Apply Stage)'
@@ -206,6 +316,9 @@ stages:
               script: |
                 set -e
                 echo "Re-initializing Terraform for apply stage..."
+                
+                # Explicitly disable Azure CLI authentication
+                export ARM_USE_CLI=false
                 
                 terraform init \
                   -backend-config="resource_group_name=$(BACKEND_RESOURCE_GROUP_NAME)" \
@@ -220,6 +333,8 @@ stages:
               ARM_CLIENT_ID: $(setAuthVarsApply.ARM_CLIENT_ID)
               ARM_TENANT_ID: $(setAuthVarsApply.ARM_TENANT_ID)
               ARM_SUBSCRIPTION_ID: $(setAuthVarsApply.ARM_SUBSCRIPTION_ID)
+              ARM_CLIENT_SECRET: $(setAuthVarsApply.ARM_CLIENT_SECRET)
+              ARM_USE_CLI: false
 
           - task: Bash@3
             displayName: 'Terraform Apply'
@@ -245,6 +360,8 @@ stages:
               ARM_CLIENT_ID: $(setAuthVarsApply.ARM_CLIENT_ID)
               ARM_TENANT_ID: $(setAuthVarsApply.ARM_TENANT_ID)
               ARM_SUBSCRIPTION_ID: $(setAuthVarsApply.ARM_SUBSCRIPTION_ID)
+              ARM_CLIENT_SECRET: $(setAuthVarsApply.ARM_CLIENT_SECRET)
+              ARM_USE_CLI: false
 
           - task: Bash@3
             displayName: 'Terraform Output'
