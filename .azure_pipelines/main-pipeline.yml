@@ -1,3 +1,4 @@
+
 parameters:
   - name: environment
     type: string
@@ -97,6 +98,10 @@ stages:
         ARM_CLIENT_ID: $(setAuthVars.ARM_CLIENT_ID)
         ARM_TENANT_ID: $(setAuthVars.ARM_TENANT_ID)
         ARM_SUBSCRIPTION_ID: $(setAuthVars.ARM_SUBSCRIPTION_ID)
+        ARM_CLIENT_SECRET: $(setAuthVars.ARM_CLIENT_SECRET)
+        ARM_CLIENT_SECRET: $(setAuthVars.ARM_CLIENT_SECRET)
+        ARM_USE_CLI: false
+      name: terraformPlan
         ARM_CLIENT_SECRET: $(setAuthVars.ARM_CLIENT_SECRET)
         ARM_USE_CLI: false
 
@@ -299,6 +304,8 @@ stages:
               ARM_CLIENT_ID: $(setAuthVarsApply.ARM_CLIENT_ID)
               ARM_TENANT_ID: $(setAuthVarsApply.ARM_TENANT_ID)
               ARM_SUBSCRIPTION_ID: $(setAuthVarsApply.ARM_SUBSCRIPTION_ID)
+              ARM_CLIENT_SECRET: $(setAuthVarsApply.ARM_CLIENT_SECRET)
+              ARM_USE_CLI: false
               ARM_CLIENT_SECRET: $(setAuthVarsApply.ARM_CLIENT_SECRET)
               ARM_USE_CLI: false
 
