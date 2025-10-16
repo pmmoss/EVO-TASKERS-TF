@@ -32,7 +32,7 @@ stages:
         provider: 'azurerm'
         command: 'init'
         workingDirectory: ${{variables.workingDirectory}}
-        backendServiceArm: ${{ variables.AzureRMConnection }}  # WIF service connection (handles backend auth)
+        backendServiceArm: 'EVO-Taskers-Sandbox'  # WIF service connection (handles backend auth)
         backendAzureRmResourceGroupName: ${{variables.BACKEND_RESOURCE_GROUP_NAME}}  # Your state RG
         backendAzureRmStorageAccountName: ${{variables.BACKEND_STORAGE_ACCOUNT_NAME}}    # Your storage account
         backendAzureRmContainerName: ${{variables.BACKEND_CONTAINER_NAME}}           # Container
