@@ -13,55 +13,78 @@ variables:
   - group: 'terraform-backend'
   - name: workingDirectory
     value: 'project/${{ parameters.projectName }}/${{ parameters.appName }}'
+  - name: terraformVersion
+    value: '1.5.0'
 
 stages:
 - stage: Plan
-  displayName: 'Terraform Plan'
+  displayName: 'Terraform Plan - ${{ parameters.environment }}'
   jobs:
   - job: Plan
+    displayName: 'Plan Infrastructure'
+    pool:
+      vmImage: 'ubuntu-latest'
     steps:
-    - task: ms-devlabs.custom-terraform-tasks.custom-terraform-installer-task.TerraformInstaller@0
+    - checkout: self
+      displayName: 'Checkout Code'
+
+    - task: TerraformInstaller@1
+      displayName: 'Install Terraform'
       inputs:
-        terraformVersion: '1.5.0'  # Or latest
+        terraformVersion: $(terraformVersion)
 
     - task: AzureCLI@2
-      displayName: 'Set OIDC Auth Vars'
-      name: setAuthVars  # Names the step so vars are accessible downstream
+      displayName: 'Set OIDC Auth Variables'
+      name: setAuthVars
       inputs:
-        azureSubscription: 'EVO-Taskers-Sandbox' # Your WIF service connection
-        scriptType: pscore  # PowerShell Core for cross-platform
-        scriptLocation: inlineScript
+        azureSubscription: 'EVO-Taskers-Sandbox'
+        scriptType: 'bash'
+        scriptLocation: 'inlineScript'
+        addSpnToEnvironment: true
         inlineScript: |
-          Write-Host "##vso[task.setvariable variable=ARM_USE_OIDC;isOutput=true]true"
-          Write-Host "##vso[task.setvariable variable=ARM_OIDC_TOKEN;isOutput=true]$env:AZURE_FEDERATED_TOKEN"
-          Write-Host "##vso[task.setvariable variable=ARM_CLIENT_ID;isOutput=true]$env:ARM_CLIENT_ID"
-          Write-Host "##vso[task.setvariable variable=ARM_TENANT_ID;isOutput=true]$env:ARM_TENANT_ID"
-          $subId = az account show --query id -o tsv
-          Write-Host "##vso[task.setvariable variable=ARM_SUBSCRIPTION_ID;isOutput=true]$subId"
-
-    # - task: AzureCLI@2
-    #   displayName: 'Verify WIF Auth'
-    #   inputs:
-    #     azureSubscription: 'EVO-Taskers-Sandbox'
-    #     scriptLocation: inlineScript
-    #     inlineScript: |
-    #       Write-Host "ARM_CLIENT_ID: $env:ARM_CLIENT_ID"
-    #       Write-Host "ARM_TENANT_ID: $env:ARM_TENANT_ID"
-    #       Write-Host "ARM_SUBSCRIPTION_ID: $env:ARM_SUBSCRIPTION_ID"
-    #       az account show
-
+          echo "Setting authentication variables..."
+          echo "##vso[task.setvariable variable=ARM_USE_OIDC;isOutput=true]true"
+          echo "##vso[task.setvariable variable=ARM_OIDC_TOKEN;isOutput=true]$servicePrincipalKey"
+          echo "##vso[task.setvariable variable=ARM_CLIENT_ID;isOutput=true]$servicePrincipalId"
+          echo "##vso[task.setvariable variable=ARM_TENANT_ID;isOutput=true]$tenantId"
+          SUB_ID=$(az account show --query id -o tsv)
+          echo "##vso[task.setvariable variable=ARM_SUBSCRIPTION_ID;isOutput=true]$SUB_ID"
+          echo "Authentication configured successfully"
 
     - task: Bash@3
       displayName: 'Terraform Init'
       inputs:
         targetType: 'inline'
-        workingDirectory: ${{ variables.workingDirectory }}
+        workingDirectory: '$(System.DefaultWorkingDirectory)/$(workingDirectory)'
         script: |
+          set -e
+          echo "Initializing Terraform..."
+          echo "Working Directory: $(pwd)"
+          
           terraform init \
-            -backend-config="resource_group_name=${{ variables.BACKEND_RESOURCE_GROUP_NAME }}" \
-            -backend-config="storage_account_name=${{ variables.BACKEND_STORAGE_ACCOUNT_NAME }}" \
-            -backend-config="container_name=${{ variables.BACKEND_CONTAINER_NAME }}" \
+            -backend-config="resource_group_name=$(BACKEND_RESOURCE_GROUP_NAME)" \
+            -backend-config="storage_account_name=$(BACKEND_STORAGE_ACCOUNT_NAME)" \
+            -backend-config="container_name=$(BACKEND_CONTAINER_NAME)" \
             -backend-config="key=${{ parameters.projectName }}-${{ parameters.appName }}-${{ parameters.environment }}.tfstate"
+          
+          echo "Terraform initialized successfully"
+      env:
+        ARM_USE_OIDC: $(setAuthVars.ARM_USE_OIDC)
+        ARM_OIDC_TOKEN: $(setAuthVars.ARM_OIDC_TOKEN)
+        ARM_CLIENT_ID: $(setAuthVars.ARM_CLIENT_ID)
+        ARM_TENANT_ID: $(setAuthVars.ARM_TENANT_ID)
+        ARM_SUBSCRIPTION_ID: $(setAuthVars.ARM_SUBSCRIPTION_ID)
+
+    - task: Bash@3
+      displayName: 'Terraform Validate'
+      inputs:
+        targetType: 'inline'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/$(workingDirectory)'
+        script: |
+          set -e
+          echo "Validating Terraform configuration..."
+          terraform validate
+          echo "Validation successful"
       env:
         ARM_USE_OIDC: $(setAuthVars.ARM_USE_OIDC)
         ARM_OIDC_TOKEN: $(setAuthVars.ARM_OIDC_TOKEN)
@@ -73,61 +96,164 @@ stages:
       displayName: 'Terraform Plan'
       inputs:
         targetType: 'inline'
-        workingDirectory: ${{ variables.workingDirectory }}
-        script: terraform plan -out=tfplan -var-file="${{ parameters.environment }}.tfvars"
+        workingDirectory: '$(System.DefaultWorkingDirectory)/$(workingDirectory)'
+        script: |
+          set -e
+          echo "Planning Terraform changes for ${{ parameters.environment }}..."
+          
+          terraform plan \
+            -var-file="${{ parameters.environment }}.tfvars" \
+            -out=tfplan \
+            -detailed-exitcode || export TF_EXIT_CODE=$?
+          
+          # Exit codes: 0 = no changes, 1 = error, 2 = changes present
+          if [ ${TF_EXIT_CODE:-0} -eq 1 ]; then
+            echo "##[error]Terraform plan failed"
+            exit 1
+          elif [ ${TF_EXIT_CODE:-0} -eq 2 ]; then
+            echo "##[section]Changes detected - plan created successfully"
+            echo "##vso[task.setvariable variable=changesPresent;isOutput=true]true"
+          else
+            echo "##[section]No changes detected"
+            echo "##vso[task.setvariable variable=changesPresent;isOutput=true]false"
+          fi
+          
+          echo "Terraform plan completed"
       env:
         ARM_USE_OIDC: $(setAuthVars.ARM_USE_OIDC)
         ARM_OIDC_TOKEN: $(setAuthVars.ARM_OIDC_TOKEN)
         ARM_CLIENT_ID: $(setAuthVars.ARM_CLIENT_ID)
         ARM_TENANT_ID: $(setAuthVars.ARM_TENANT_ID)
         ARM_SUBSCRIPTION_ID: $(setAuthVars.ARM_SUBSCRIPTION_ID)
-      name: terraformPlan  # For condition in Apply
+      name: terraformPlan
 
-    # Optional: Publish plan as artifact for Apply stage
-    - task: PublishPipelineArtifact@1
+    - task: Bash@3
+      displayName: 'Show Terraform Plan'
+      condition: eq(variables['terraformPlan.changesPresent'], 'true')
       inputs:
-        targetPath: '$(Pipeline.Workspace)/${{ variables.workingDirectory }}/tfplan'
-        artifact: 'tfplan'
+        targetType: 'inline'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/$(workingDirectory)'
+        script: |
+          echo "##[section]Terraform Plan Output:"
+          terraform show tfplan
+      env:
+        ARM_USE_OIDC: $(setAuthVars.ARM_USE_OIDC)
+        ARM_OIDC_TOKEN: $(setAuthVars.ARM_OIDC_TOKEN)
+        ARM_CLIENT_ID: $(setAuthVars.ARM_CLIENT_ID)
+        ARM_TENANT_ID: $(setAuthVars.ARM_TENANT_ID)
+        ARM_SUBSCRIPTION_ID: $(setAuthVars.ARM_SUBSCRIPTION_ID)
+
+    - task: PublishPipelineArtifact@1
+      displayName: 'Publish Terraform Plan'
+      condition: eq(variables['terraformPlan.changesPresent'], 'true')
+      inputs:
+        targetPath: '$(System.DefaultWorkingDirectory)/$(workingDirectory)'
+        artifact: 'terraform-plan-${{ parameters.environment }}'
         publishLocation: 'pipeline'
 
 - stage: Apply
-  displayName: 'Terraform Apply'
+  displayName: 'Terraform Apply - ${{ parameters.environment }}'
   dependsOn: Plan
-  condition: and(succeeded(), eq(variables.terraformPlan.changesPresent, 'true'))  # Only if changes
+  condition: and(succeeded(), eq(dependencies.Plan.outputs['Plan.terraformPlan.changesPresent'], 'true'))
   jobs:
   - deployment: Apply
+    displayName: 'Apply Infrastructure Changes'
     environment: '${{ parameters.projectName }}-${{ parameters.environment }}'
+    pool:
+      vmImage: 'ubuntu-latest'
     strategy:
       runOnce:
         deploy:
           steps:
+          - checkout: self
+            displayName: 'Checkout Code'
+
           - task: DownloadPipelineArtifact@2
+            displayName: 'Download Terraform Plan'
             inputs:
               buildType: 'current'
-              artifactName: 'tfplan'
-              targetPath: '$(Pipeline.Workspace)/${{ variables.workingDirectory }}'
+              artifactName: 'terraform-plan-${{ parameters.environment }}'
+              targetPath: '$(System.DefaultWorkingDirectory)/$(workingDirectory)'
+
+          - task: TerraformInstaller@1
+            displayName: 'Install Terraform'
+            inputs:
+              terraformVersion: $(terraformVersion)
 
           - task: AzureCLI@2
-            displayName: 'Set OIDC Auth Vars (Apply)'
+            displayName: 'Set OIDC Auth Variables (Apply)'
             name: setAuthVarsApply
             inputs:
               azureSubscription: 'EVO-Taskers-Sandbox'
-              scriptType: pscore
-              scriptLocation: inlineScript
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              addSpnToEnvironment: true
               inlineScript: |
-                Write-Host "##vso[task.setvariable variable=ARM_USE_OIDC;isOutput=true]true"
-                Write-Host "##vso[task.setvariable variable=ARM_OIDC_TOKEN;isOutput=true]$env:AZURE_FEDERATED_TOKEN"
-                Write-Host "##vso[task.setvariable variable=ARM_CLIENT_ID;isOutput=true]$env:ARM_CLIENT_ID"
-                Write-Host "##vso[task.setvariable variable=ARM_TENANT_ID;isOutput=true]$env:ARM_TENANT_ID"
-                $subId = az account show --query id -o tsv
-                Write-Host "##vso[task.setvariable variable=ARM_SUBSCRIPTION_ID;isOutput=true]$subId"
+                echo "Setting authentication variables for apply..."
+                echo "##vso[task.setvariable variable=ARM_USE_OIDC;isOutput=true]true"
+                echo "##vso[task.setvariable variable=ARM_OIDC_TOKEN;isOutput=true]$servicePrincipalKey"
+                echo "##vso[task.setvariable variable=ARM_CLIENT_ID;isOutput=true]$servicePrincipalId"
+                echo "##vso[task.setvariable variable=ARM_TENANT_ID;isOutput=true]$tenantId"
+                SUB_ID=$(az account show --query id -o tsv)
+                echo "##vso[task.setvariable variable=ARM_SUBSCRIPTION_ID;isOutput=true]$SUB_ID"
+                echo "Authentication configured successfully"
+
+          - task: Bash@3
+            displayName: 'Terraform Init (Apply Stage)'
+            inputs:
+              targetType: 'inline'
+              workingDirectory: '$(System.DefaultWorkingDirectory)/$(workingDirectory)'
+              script: |
+                set -e
+                echo "Re-initializing Terraform for apply stage..."
+                
+                terraform init \
+                  -backend-config="resource_group_name=$(BACKEND_RESOURCE_GROUP_NAME)" \
+                  -backend-config="storage_account_name=$(BACKEND_STORAGE_ACCOUNT_NAME)" \
+                  -backend-config="container_name=$(BACKEND_CONTAINER_NAME)" \
+                  -backend-config="key=${{ parameters.projectName }}-${{ parameters.appName }}-${{ parameters.environment }}.tfstate"
+                
+                echo "Terraform initialized successfully"
+            env:
+              ARM_USE_OIDC: $(setAuthVarsApply.ARM_USE_OIDC)
+              ARM_OIDC_TOKEN: $(setAuthVarsApply.ARM_OIDC_TOKEN)
+              ARM_CLIENT_ID: $(setAuthVarsApply.ARM_CLIENT_ID)
+              ARM_TENANT_ID: $(setAuthVarsApply.ARM_TENANT_ID)
+              ARM_SUBSCRIPTION_ID: $(setAuthVarsApply.ARM_SUBSCRIPTION_ID)
 
           - task: Bash@3
             displayName: 'Terraform Apply'
             inputs:
               targetType: 'inline'
-              workingDirectory: ${{ variables.workingDirectory }}
-              script: terraform apply tfplan -auto-approve -var-file="${{ parameters.environment }}.tfvars"
+              workingDirectory: '$(System.DefaultWorkingDirectory)/$(workingDirectory)'
+              script: |
+                set -e
+                echo "##[section]Applying Terraform changes for ${{ parameters.environment }}..."
+                echo "Working Directory: $(pwd)"
+                
+                if [ ! -f "tfplan" ]; then
+                  echo "##[error]Plan file not found!"
+                  exit 1
+                fi
+                
+                terraform apply -auto-approve tfplan
+                
+                echo "##[section]Terraform apply completed successfully!"
+            env:
+              ARM_USE_OIDC: $(setAuthVarsApply.ARM_USE_OIDC)
+              ARM_OIDC_TOKEN: $(setAuthVarsApply.ARM_OIDC_TOKEN)
+              ARM_CLIENT_ID: $(setAuthVarsApply.ARM_CLIENT_ID)
+              ARM_TENANT_ID: $(setAuthVarsApply.ARM_TENANT_ID)
+              ARM_SUBSCRIPTION_ID: $(setAuthVarsApply.ARM_SUBSCRIPTION_ID)
+
+          - task: Bash@3
+            displayName: 'Terraform Output'
+            inputs:
+              targetType: 'inline'
+              workingDirectory: '$(System.DefaultWorkingDirectory)/$(workingDirectory)'
+              script: |
+                echo "##[section]Terraform Outputs:"
+                terraform output
             env:
               ARM_USE_OIDC: $(setAuthVarsApply.ARM_USE_OIDC)
               ARM_OIDC_TOKEN: $(setAuthVarsApply.ARM_OIDC_TOKEN)
