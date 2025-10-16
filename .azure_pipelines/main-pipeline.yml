@@ -9,16 +9,16 @@ parameters:
   - name: appName
     type: string
     default: 'unlockbookings'
-  - name: AzureRM-Connection
-    type: string
-    default: 'EVO-Taskers-Sandbox'
+
 
 variables:
   - group: 'terraform-backend'
   - name: workingDirectory
     type: string
     value: 'project/${{ parameters.projectName }}/${{ parameters.appName }}'
-
+  - name: AzureRM-Connection
+    type: string
+    default: 'EVO-Taskers-Sandbox'
 stages:
 - stage: Plan
   displayName: 'Terraform Plan'
@@ -35,7 +35,7 @@ stages:
         provider: 'azurerm'
         command: 'init'
         workingDirectory: ${{variables.workingDirectory}}
-        backendServiceArm: ${{parameters.AzureRM-Connection}}  # Your WIF service connection
+        backendServiceArm: ${{variables.AzureRM-Connection}}  # Your WIF service connection
         backendAzureRmResourceGroupName: ${{variables.BACKEND_RESOURCE_GROUP_NAME}}  # Your state RG
         backendAzureRmStorageAccountName: ${{variables.BACKEND_STORAGE_ACCOUNT_NAME}}    # Your storage account
         backendAzureRmContainerName: ${{variables.BACKEND_CONTAINER_NAME}}           # Container
@@ -69,7 +69,7 @@ stages:
               provider: 'azurerm'
               command: 'apply'
               workingDirectory: ${{variables.workingDirectory}}
-              environmentServiceNameAzureRM: ${{parameters.AzureRM-Connection}}
+              environmentServiceNameAzureRM: ${{variables.AzureRM-Connection}}
               commandOptions: 'tfplan -auto-approve -var-file="dev.tfvars"'
             env:
               ARM_USE_AZUREAD: true
