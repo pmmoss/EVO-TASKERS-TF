@@ -39,6 +39,18 @@ stages:
           $subId = az account show --query id -o tsv
           Write-Host "##vso[task.setvariable variable=ARM_SUBSCRIPTION_ID;isOutput=true]$subId"
 
+    - task: AzureCLI@2
+      displayName: 'Verify WIF Auth'
+      inputs:
+        azureSubscription: ${{ variables.AzureRMConnection }}
+        scriptLocation: inlineScript
+        inlineScript: |
+          Write-Host "ARM_CLIENT_ID: $env:ARM_CLIENT_ID"
+          Write-Host "ARM_TENANT_ID: $env:ARM_TENANT_ID"
+          Write-Host "ARM_SUBSCRIPTION_ID: $env:ARM_SUBSCRIPTION_ID"
+          az account show
+
+
     - task: Bash@3
       displayName: 'Terraform Init'
       inputs:
