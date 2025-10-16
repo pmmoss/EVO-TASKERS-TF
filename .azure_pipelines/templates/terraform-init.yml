@@ -8,7 +8,7 @@ parameters:
     default: 'EVO-Taskers-Sandbox'
 
 variables:
-  - group: 'terraform-backend'
+- group: 'terraform-backend'
 steps:
   - task: TerraformTaskV4@4
   displayName: Initialize Terraform
