@@ -4,12 +4,7 @@
 terraform {
   required_version = ">=1.2"
   
-  backend "azurerm" {
-    # resource_group_name  = "rg-evotaskers-state-pmoss"
-    # storage_account_name = "stevotaskersstatepoc"
-    # container_name       = "tfstate"
-    # key                  = "landing-zone/evo-taskers-unlockbookings-dev.tfstate"
-  }
+  backend "azurerm" {}
   
   required_providers {
     azurerm = {
