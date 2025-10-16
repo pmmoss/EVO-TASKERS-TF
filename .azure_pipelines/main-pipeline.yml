@@ -10,14 +10,13 @@ parameters:
     type: string
     default: 'unlockbookings'
 
-
 variables:
   - group: 'terraform-backend'
   - name: workingDirectory
-    type: string
     value: 'project/${{ parameters.projectName }}/${{ parameters.appName }}'
   - name: AzureRM-Connection
-    default: 'EVO-Taskers-Sandbox'
+    value: 'EVO-Taskers-Sandbox'
+
 stages:
 - stage: Plan
   displayName: 'Terraform Plan'
@@ -48,8 +47,10 @@ stages:
         provider: 'azurerm'
         command: 'plan'
         workingDirectory: ${{variables.workingDirectory}}
-        environmentServiceNameAzureRM: 'tf-logic-app-sc'  # Your WIF service connection
-        commandOptions: '-out=tfplan -var-file="dev.tfvars"'  # Adjust vars file
+        environmentServiceNameAzureRM: ${{variables.AzureRM-Connection}}  # Your WIF service connection
+        commandOptions: '-out=tfplan -var-file="${{ parameters.environment }}.tfvars"'  # Dynamic vars file
+      env:
+        ARM_USE_AZUREAD: true
 
 - stage: Apply
   displayName: 'Terraform Apply'
@@ -57,7 +58,7 @@ stages:
   condition: succeeded()
   jobs:
   - deployment: Apply
-    environment: '-${{parameters.projectName}}-${{parameters.environment}}'  # Azure DevOps environment for approvals
+    environment: '${{parameters.projectName}}-${{parameters.environment}}'  # Azure DevOps environment for approvals (removed leading '-')
     strategy:
       runOnce:
         deploy:
@@ -69,6 +70,6 @@ stages:
               command: 'apply'
               workingDirectory: ${{variables.workingDirectory}}
               environmentServiceNameAzureRM: ${{variables.AzureRM-Connection}}
-              commandOptions: 'tfplan -auto-approve -var-file="dev.tfvars"'
+              commandOptions: 'tfplan -auto-approve -var-file="${{ parameters.environment }}.tfvars"'  # Dynamic vars file
             env:
               ARM_USE_AZUREAD: true
