@@ -1,0 +1,74 @@
+parameters:
+  - name: environment
+    type: string
+    default: 'dev'
+  - name: projectName
+    type: string
+    default: 'evo-taskers'
+  - name: appName
+    type: string
+    default: 'unlockbookings'
+
+variables:
+  - group: 'terraform-backend'
+  - name: workingDirectory
+    value: 'project/${{ parameters.projectName }}/${{ parameters.appName }}'
+  # - name: AzureRMConnection
+  #   value: 'EVO-Taskers-Sandbox'  # Your WIF service connection
+
+stages:
+- stage: Plan
+  displayName: 'Terraform Plan'
+  jobs:
+  - job: Plan
+    steps:
+    - task: ms-devlabs.custom-terraform-tasks.custom-terraform-installer-task.TerraformInstaller@0
+      inputs:
+        terraformVersion: '1.5.0'  # Or latest
+
+    - task: TerraformTaskV4@5
+      displayName: 'Terraform Init'
+      inputs:
+        provider: 'azurerm'
+        command: 'init'
+        workingDirectory: ${{variables.workingDirectory}}
+        backendServiceArm: 'EVO-Taskers-Sandbox'  # WIF service connection (handles backend auth)
+        backendAzureRmResourceGroupName: ${{variables.BACKEND_RESOURCE_GROUP_NAME}}  # Your state RG
+        backendAzureRmStorageAccountName: ${{variables.BACKEND_STORAGE_ACCOUNT_NAME}}    # Your storage account
+        backendAzureRmContainerName: ${{variables.BACKEND_CONTAINER_NAME}}           # Container
+        backendAzureRmKey: '${{ parameters.projectName }}-${{ parameters.appName }}-${{ parameters.environment }}.tfstate'           # State file key
+      env:
+        ARM_USE_OIDC: true  # Enables OIDC/WIF auth (replaces ARM_USE_AZUREAD)
+
+    - task: TerraformTaskV4@5
+      displayName: 'Terraform Plan'
+      inputs:
+        provider: 'azurerm'
+        command: 'plan'
+        workingDirectory: ${{variables.workingDirectory}}
+        environmentServiceNameAzureRM: ${{ variables.AzureRMConnection }}  # WIF service connection (handles provider auth)
+        commandOptions: '-out=tfplan -var-file="${{ parameters.environment }}.tfvars"'  # Dynamic vars file
+      env:
+        ARM_USE_OIDC: true  # Enables OIDC/WIF auth
+
+- stage: Apply
+  displayName: 'Terraform Apply'
+  dependsOn: Plan
+  condition: succeeded()
+  jobs:
+  - deployment: Apply
+    environment: '${{parameters.projectName}}-${{parameters.environment}}'  # Azure DevOps environment for approvals
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - task: TerraformTaskV4@5
+            displayName: 'Terraform Apply'
+            inputs:
+              provider: 'azurerm'
+              command: 'apply'
+              workingDirectory: ${{variables.workingDirectory}}
+              environmentServiceNameAzureRM: ${{ variables.AzureRMConnection }}  # WIF service connection
+              commandOptions: 'tfplan -auto-approve -var-file="${{ parameters.environment }}.tfvars"'  # Dynamic vars file
+            env:
+              ARM_USE_OIDC: true  # Enables OIDC/WIF auth (with token refresh in v5)
