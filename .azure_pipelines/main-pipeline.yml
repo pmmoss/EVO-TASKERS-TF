@@ -13,7 +13,7 @@ variables:
   - group: 'terraform-backend'
   - name: workingDirectory
     value: 'project/${{ parameters.projectName }}/${{ parameters.appName }}'
-  - name: AzureRM-Connection
+  - name: AzureRMConnection
     value: 'EVO-Taskers-Sandbox'  # Your WIF service connection
 
 stages:
@@ -32,7 +32,7 @@ stages:
         provider: 'azurerm'
         command: 'init'
         workingDirectory: ${{variables.workingDirectory}}
-        backendServiceArm: ${{ variables['AzureRM-Connection'] }}  # WIF service connection (handles backend auth)
+        backendServiceArm: ${{ variables.AzureRMConnection }}  # WIF service connection (handles backend auth)
         backendAzureRmResourceGroupName: ${{variables.BACKEND_RESOURCE_GROUP_NAME}}  # Your state RG
         backendAzureRmStorageAccountName: ${{variables.BACKEND_STORAGE_ACCOUNT_NAME}}    # Your storage account
         backendAzureRmContainerName: ${{variables.BACKEND_CONTAINER_NAME}}           # Container
@@ -46,7 +46,7 @@ stages:
         provider: 'azurerm'
         command: 'plan'
         workingDirectory: ${{variables.workingDirectory}}
-        environmentServiceNameAzureRM: ${{ variables['AzureRM-Connection'] }}  # WIF service connection (handles provider auth)
+        environmentServiceNameAzureRM: ${{ variables.AzureRMConnection }}  # WIF service connection (handles provider auth)
         commandOptions: '-out=tfplan -var-file="${{ parameters.environment }}.tfvars"'  # Dynamic vars file
       env:
         ARM_USE_OIDC: true  # Enables OIDC/WIF auth
@@ -68,7 +68,7 @@ stages:
               provider: 'azurerm'
               command: 'apply'
               workingDirectory: ${{variables.workingDirectory}}
-              environmentServiceNameAzureRM: ${{ variables['AzureRM-Connection'] }}  # WIF service connection
+              environmentServiceNameAzureRM: ${{ variables.AzureRMConnection }}  # WIF service connection
               commandOptions: 'tfplan -auto-approve -var-file="${{ parameters.environment }}.tfvars"'  # Dynamic vars file
             env:
               ARM_USE_OIDC: true  # Enables OIDC/WIF auth (with token refresh in v5)
