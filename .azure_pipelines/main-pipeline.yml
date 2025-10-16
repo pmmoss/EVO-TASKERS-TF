@@ -30,7 +30,7 @@ stages:
         provider: 'azurerm'
         command: 'init'
         workingDirectory: ${{variables.workingDirectory}}
-        backendServiceArm: ${{variables.AzureRM-Connection}}  # WIF service connection from var group
+        backendServiceArm: ${{variables.AzureRMConnection}}  # WIF service connection from var group
         backendAzureRmResourceGroupName: ${{variables.BACKEND_RESOURCE_GROUP_NAME}}  # Your state RG
         backendAzureRmStorageAccountName: ${{variables.BACKEND_STORAGE_ACCOUNT_NAME}}    # Your storage account
         backendAzureRmContainerName: ${{variables.BACKEND_CONTAINER_NAME}}           # Container
@@ -44,7 +44,7 @@ stages:
         provider: 'azurerm'
         command: 'plan'
         workingDirectory: ${{variables.workingDirectory}}
-        environmentServiceNameAzureRM: ${{variables.AzureRM-Connection}}  # WIF service connection from var group
+        environmentServiceNameAzureRM: ${{variables.AzureRMConnection}}  # WIF service connection from var group
         commandOptions: '-out=tfplan -var-file="${{ parameters.environment }}.tfvars"'  # Dynamic vars file
       env:
         ARM_USE_AZUREAD: true  # Enables WIF auth
@@ -66,7 +66,7 @@ stages:
               provider: 'azurerm'
               command: 'apply'
               workingDirectory: ${{variables.workingDirectory}}
-              environmentServiceNameAzureRM: ${{variables.AzureRM-Connection}}  # WIF service connection from var group
+              environmentServiceNameAzureRM: ${{variables.AzureRMConnection}}  # WIF service connection from var group
               commandOptions: 'tfplan -auto-approve -var-file="${{ parameters.environment }}.tfvars"'  # Dynamic vars file
             env:
               ARM_USE_AZUREAD: true  # Enables WIF auth

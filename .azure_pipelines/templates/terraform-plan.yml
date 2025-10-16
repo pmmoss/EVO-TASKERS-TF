@@ -3,7 +3,7 @@ parameters:
     type: string
   - name: workingDirectory
     type: string
-  - name: AzureRM-Connection
+  - name: AzureRMConnection
     type: string
     default: 'EVO-Taskers-Sandbox'
 steps:
