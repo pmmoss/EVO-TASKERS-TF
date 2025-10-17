@@ -1,5 +1,8 @@
-# AutomatedDataFeed Dev Environment Configuration
+# AutoOpenShoreX Dev Environment Configuration
 # Apply with: terraform apply -var-file="dev.tfvars"
+
+# Environment identifier (required)
+environment = "dev"
 app_name = "autoopenshorex"
 ######## Web App Service Configuration ########
 app_service_sku       = "P0v3"   # Basic tier for dev

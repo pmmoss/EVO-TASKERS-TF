@@ -1,5 +1,8 @@
 # AutomatedDataFeed Production Environment Configuration
 # Apply with: terraform apply -var-file="prod.tfvars"
+
+# Environment identifier (required)
+environment = "prod"
 app_name = "automateddatafeed"
 ######## Web App Service Configuration ########
 app_service_sku       = "P2v3"   # Premium tier for production

@@ -1,5 +1,8 @@
 # AutomatedDataFeed Dev Environment Configuration
 # Apply with: terraform apply -var-file="dev.tfvars"
+
+# Environment identifier (required)
+environment = "dev"
 app_name = "automateddatafeed"
 ######## Web App Service Configuration ########
 app_service_sku       = "P0v3"   # Basic tier for dev

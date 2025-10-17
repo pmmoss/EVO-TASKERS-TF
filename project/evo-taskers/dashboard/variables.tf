@@ -1,6 +1,16 @@
 # Variables for dashboard (all environments)
 # Environment-specific values are set in dev.tfvars, qa.tfvars, prod.tfvars
 
+# Environment variable (required)
+variable "environment" {
+  type        = string
+  description = "Environment name (dev, qa, prod)"
+  validation {
+    condition     = contains(["dev", "qa", "prod"], var.environment)
+    error_message = "Environment must be dev, qa, or prod."
+  }
+}
+
 variable "app_name" {
   type        = string
   description = "Application name (e.g., unlockbookings, dashboard)"
