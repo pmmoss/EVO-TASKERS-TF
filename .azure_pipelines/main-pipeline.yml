@@ -80,6 +80,7 @@ stages:
             inputs:
               azureSubscription: '$(serviceConnection)'
               scriptType: 'bash'
+              scriptLocation: 'inlineScript'
               addSpnToEnvironment: true
               inlineScript: |
                 SUBSCRIPTION_ID=$(az account show --query id -o tsv)
