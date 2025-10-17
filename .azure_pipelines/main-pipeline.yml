@@ -83,17 +83,29 @@ stages:
               scriptLocation: 'inlineScript'
               addSpnToEnvironment: true
               inlineScript: |
+                echo "=== DEBUG: Authentication Variables ==="
+                echo "servicePrincipalId: ${servicePrincipalId:-(empty)}"
+                echo "tenantId: ${tenantId:-(empty)}"
+                echo "idToken present: $([ -n "$idToken" ] && echo 'YES' || echo 'NO')"
+                echo "idToken length: ${#idToken}"
+                echo "servicePrincipalKey present: $([ -n "$servicePrincipalKey" ] && echo 'YES' || echo 'NO')"
+                echo "servicePrincipalKey length: ${#servicePrincipalKey}"
+                echo "======================================"
+                
                 SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+                echo "Subscription ID: $SUBSCRIPTION_ID"
+                
                 echo "##vso[task.setvariable variable=ARM_CLIENT_ID;isOutput=true]$servicePrincipalId"
                 echo "##vso[task.setvariable variable=ARM_TENANT_ID;isOutput=true]$tenantId"
                 echo "##vso[task.setvariable variable=ARM_SUBSCRIPTION_ID;isOutput=true]$SUBSCRIPTION_ID"
                 
                 if [ -n "$idToken" ]; then
-                  echo "Using OIDC authentication"
+                  echo "✓ Using OIDC authentication"
                   echo "##vso[task.setvariable variable=ARM_USE_OIDC;isOutput=true]true"
                   echo "##vso[task.setvariable variable=ARM_OIDC_TOKEN;isOutput=true]$idToken"
                 else
-                  echo "Using Service Principal authentication"
+                  echo "✗ Using Service Principal authentication (OIDC token not available)"
+                  echo "##[warning]OIDC is not configured - falling back to client secret"
                   echo "##vso[task.setvariable variable=ARM_USE_OIDC;isOutput=true]false"
                   echo "##vso[task.setvariable variable=ARM_CLIENT_SECRET;isOutput=true]$servicePrincipalKey"
                 fi
@@ -102,8 +114,19 @@ stages:
             displayName: 'Terraform Init'
             inputs:
               targetType: 'inline'
+              addSpnToEnvironment: true
               workingDirectory: '$(System.DefaultWorkingDirectory)/$(workingDirectory)'
               script: |
+                echo "=== DEBUG: Terraform Environment Variables ==="
+                echo "ARM_CLIENT_ID: ${ARM_CLIENT_ID:-(empty)}"
+                echo "ARM_TENANT_ID: ${ARM_TENANT_ID:-(empty)}"
+                echo "ARM_SUBSCRIPTION_ID: ${ARM_SUBSCRIPTION_ID:-(empty)}"
+                echo "ARM_USE_OIDC: ${ARM_USE_OIDC:-(empty)}"
+                echo "ARM_OIDC_TOKEN length: ${#ARM_OIDC_TOKEN}"
+                echo "ARM_CLIENT_SECRET length: ${#ARM_CLIENT_SECRET}"
+                echo "ARM_USE_CLI: ${ARM_USE_CLI:-(empty)}"
+                echo "=============================================="
+                
                 terraform init \
                   -backend-config="resource_group_name=$(BACKEND_RESOURCE_GROUP_NAME)" \
                   -backend-config="storage_account_name=$(BACKEND_STORAGE_ACCOUNT_NAME)" \
