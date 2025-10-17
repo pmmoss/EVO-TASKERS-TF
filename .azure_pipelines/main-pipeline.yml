@@ -177,90 +177,90 @@ stages:
               targetPath: '$(Build.ArtifactStagingDirectory)'
               artifact: 'terraform-plan'
 
-  - stage: Apply
-    displayName: 'Apply - ${{ parameters.environment }}'
-    dependsOn: Plan
-    condition: and(succeeded(), eq(dependencies.Plan.outputs['TerraformPlan.plan.hasChanges'], 'true'))
-    jobs:
-      - deployment: TerraformApply
-        displayName: 'Apply'
-        pool:
-          vmImage: 'ubuntu-latest'
-        environment: '${{ parameters.projectName }}-${{ parameters.environment }}'
-        strategy:
-          runOnce:
-            deploy:
-              steps:
-                - checkout: self
-                  fetchDepth: 1
+  # - stage: Apply
+  #   displayName: 'Apply - ${{ parameters.environment }}'
+  #   dependsOn: Plan
+  #   condition: and(succeeded(), eq(dependencies.Plan.outputs['TerraformPlan.plan.hasChanges'], 'true'))
+  #   jobs:
+  #     - deployment: TerraformApply
+  #       displayName: 'Apply'
+  #       pool:
+  #         vmImage: 'ubuntu-latest'
+  #       environment: '${{ parameters.projectName }}-${{ parameters.environment }}'
+  #       strategy:
+  #         runOnce:
+  #           deploy:
+  #             steps:
+  #               - checkout: self
+  #                 fetchDepth: 1
 
-                - task: DownloadPipelineArtifact@2
-                  displayName: 'Download Plan'
-                  inputs:
-                    artifactName: 'terraform-plan'
-                    targetPath: '$(Pipeline.Workspace)/terraform-plan'
+  #               - task: DownloadPipelineArtifact@2
+  #                 displayName: 'Download Plan'
+  #                 inputs:
+  #                   artifactName: 'terraform-plan'
+  #                   targetPath: '$(Pipeline.Workspace)/terraform-plan'
 
-                - task: ExtractFiles@1
-                  displayName: 'Extract Plan'
-                  inputs:
-                    archiveFilePatterns: '$(Pipeline.Workspace)/terraform-plan/terraform.tar.gz'
-                    destinationFolder: '$(System.DefaultWorkingDirectory)/$(workingDirectory)'
+  #               - task: ExtractFiles@1
+  #                 displayName: 'Extract Plan'
+  #                 inputs:
+  #                   archiveFilePatterns: '$(Pipeline.Workspace)/terraform-plan/terraform.tar.gz'
+  #                   destinationFolder: '$(System.DefaultWorkingDirectory)/$(workingDirectory)'
 
-                - task: ms-devlabs.custom-terraform-tasks.custom-terraform-installer-task.TerraformInstaller@0
-                  displayName: 'Install Terraform'
-                  inputs:
-                    terraformVersion: '$(terraformVersion)'
+  #               - task: ms-devlabs.custom-terraform-tasks.custom-terraform-installer-task.TerraformInstaller@0
+  #                 displayName: 'Install Terraform'
+  #                 inputs:
+  #                   terraformVersion: '$(terraformVersion)'
 
-                - task: AzureCLI@2
-                  displayName: 'Setup Authentication'
-                  name: auth
-                  inputs:
-                    azureSubscription: '$(serviceConnection)'
-                    scriptType: 'bash'
-                    addSpnToEnvironment: true
-                    inlineScript: |
-                      SUBSCRIPTION_ID=$(az account show --query id -o tsv)
-                      echo "##vso[task.setvariable variable=ARM_CLIENT_ID;isOutput=true]$servicePrincipalId"
-                      echo "##vso[task.setvariable variable=ARM_TENANT_ID;isOutput=true]$tenantId"
-                      echo "##vso[task.setvariable variable=ARM_SUBSCRIPTION_ID;isOutput=true]$SUBSCRIPTION_ID"
+  #               - task: AzureCLI@2
+  #                 displayName: 'Setup Authentication'
+  #                 name: auth
+  #                 inputs:
+  #                   azureSubscription: '$(serviceConnection)'
+  #                   scriptType: 'bash'
+  #                   addSpnToEnvironment: true
+  #                   inlineScript: |
+  #                     SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+  #                     echo "##vso[task.setvariable variable=ARM_CLIENT_ID;isOutput=true]$servicePrincipalId"
+  #                     echo "##vso[task.setvariable variable=ARM_TENANT_ID;isOutput=true]$tenantId"
+  #                     echo "##vso[task.setvariable variable=ARM_SUBSCRIPTION_ID;isOutput=true]$SUBSCRIPTION_ID"
                       
-                      if [ -n "$idToken" ]; then
-                        echo "Using OIDC authentication"
-                        echo "##vso[task.setvariable variable=ARM_USE_OIDC;isOutput=true]true"
-                        echo "##vso[task.setvariable variable=ARM_OIDC_TOKEN;isOutput=true]$idToken"
-                      else
-                        echo "Using Service Principal authentication"
-                        echo "##vso[task.setvariable variable=ARM_USE_OIDC;isOutput=true]false"
-                        echo "##vso[task.setvariable variable=ARM_CLIENT_SECRET;isOutput=true]$servicePrincipalKey"
-                      fi
+  #                     if [ -n "$idToken" ]; then
+  #                       echo "Using OIDC authentication"
+  #                       echo "##vso[task.setvariable variable=ARM_USE_OIDC;isOutput=true]true"
+  #                       echo "##vso[task.setvariable variable=ARM_OIDC_TOKEN;isOutput=true]$idToken"
+  #                     else
+  #                       echo "Using Service Principal authentication"
+  #                       echo "##vso[task.setvariable variable=ARM_USE_OIDC;isOutput=true]false"
+  #                       echo "##vso[task.setvariable variable=ARM_CLIENT_SECRET;isOutput=true]$servicePrincipalKey"
+  #                     fi
 
-                - task: Bash@3
-                  displayName: 'Terraform Apply'
-                  inputs:
-                    targetType: 'inline'
-                    workingDirectory: '$(System.DefaultWorkingDirectory)/$(workingDirectory)'
-                    script: terraform apply -auto-approve tfplan
-                  env:
-                    ARM_CLIENT_ID: $(auth.ARM_CLIENT_ID)
-                    ARM_TENANT_ID: $(auth.ARM_TENANT_ID)
-                    ARM_SUBSCRIPTION_ID: $(auth.ARM_SUBSCRIPTION_ID)
-                    ARM_USE_OIDC: $(auth.ARM_USE_OIDC)
-                    ARM_OIDC_TOKEN: $(auth.ARM_OIDC_TOKEN)
-                    ARM_CLIENT_SECRET: $(auth.ARM_CLIENT_SECRET)
-                    ARM_USE_CLI: false
+  #               - task: Bash@3
+  #                 displayName: 'Terraform Apply'
+  #                 inputs:
+  #                   targetType: 'inline'
+  #                   workingDirectory: '$(System.DefaultWorkingDirectory)/$(workingDirectory)'
+  #                   script: terraform apply -auto-approve tfplan
+  #                 env:
+  #                   ARM_CLIENT_ID: $(auth.ARM_CLIENT_ID)
+  #                   ARM_TENANT_ID: $(auth.ARM_TENANT_ID)
+  #                   ARM_SUBSCRIPTION_ID: $(auth.ARM_SUBSCRIPTION_ID)
+  #                   ARM_USE_OIDC: $(auth.ARM_USE_OIDC)
+  #                   ARM_OIDC_TOKEN: $(auth.ARM_OIDC_TOKEN)
+  #                   ARM_CLIENT_SECRET: $(auth.ARM_CLIENT_SECRET)
+  #                   ARM_USE_CLI: false
 
-                - task: Bash@3
-                  displayName: 'Show Outputs'
-                  continueOnError: true
-                  inputs:
-                    targetType: 'inline'
-                    workingDirectory: '$(System.DefaultWorkingDirectory)/$(workingDirectory)'
-                    script: terraform output -json
-                  env:
-                    ARM_CLIENT_ID: $(auth.ARM_CLIENT_ID)
-                    ARM_TENANT_ID: $(auth.ARM_TENANT_ID)
-                    ARM_SUBSCRIPTION_ID: $(auth.ARM_SUBSCRIPTION_ID)
-                    ARM_USE_OIDC: $(auth.ARM_USE_OIDC)
-                    ARM_OIDC_TOKEN: $(auth.ARM_OIDC_TOKEN)
-                    ARM_CLIENT_SECRET: $(auth.ARM_CLIENT_SECRET)
-                    ARM_USE_CLI: false
+  #               - task: Bash@3
+  #                 displayName: 'Show Outputs'
+  #                 continueOnError: true
+  #                 inputs:
+  #                   targetType: 'inline'
+  #                   workingDirectory: '$(System.DefaultWorkingDirectory)/$(workingDirectory)'
+  #                   script: terraform output -json
+  #                 env:
+  #                   ARM_CLIENT_ID: $(auth.ARM_CLIENT_ID)
+  #                   ARM_TENANT_ID: $(auth.ARM_TENANT_ID)
+  #                   ARM_SUBSCRIPTION_ID: $(auth.ARM_SUBSCRIPTION_ID)
+  #                   ARM_USE_OIDC: $(auth.ARM_USE_OIDC)
+  #                   ARM_OIDC_TOKEN: $(auth.ARM_OIDC_TOKEN)
+  #                   ARM_CLIENT_SECRET: $(auth.ARM_CLIENT_SECRET)
+  #                   ARM_USE_CLI: false
