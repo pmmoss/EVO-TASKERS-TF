@@ -83,45 +83,45 @@ resource "azurerm_role_assignment" "storage_reader" {
 }
 
 
-resource "azurerm_monitor_diagnostic_setting" "storage" {
-  count                      = var.enable_diagnostics ? 1 : 0
-  name                       = "diag"
-  target_resource_id         = azurerm_storage_account.this.id
-  log_analytics_workspace_id = var.log_analytics_workspace_id
+# resource "azurerm_monitor_diagnostic_setting" "storage" {
+#   count                      = var.enable_diagnostics ? 1 : 0
+#   name                       = "diag"
+#   target_resource_id         = azurerm_storage_account.this.id
+#   log_analytics_workspace_id = var.log_analytics_workspace_id
 
-  log {
-    category = "StorageRead"
-    enabled  = true
-    retention_policy {
-      enabled = true
-      days    = 30
-    }
-  }
+#   log {
+#     category = "StorageRead"
+#     enabled  = true
+#     retention_policy {
+#       enabled = true
+#       days    = 30
+#     }
+#   }
 
-  log {
-    category = "StorageWrite"
-    enabled  = true
-    retention_policy {
-      enabled = true
-      days    = 30
-    }
-  }
+#   log {
+#     category = "StorageWrite"
+#     enabled  = true
+#     retention_policy {
+#       enabled = true
+#       days    = 30
+#     }
+#   }
 
-  log {
-    category = "StorageDelete"
-    enabled  = true
-    retention_policy {
-      enabled = true
-      days    = 30
-    }
-  }
+#   log {
+#     category = "StorageDelete"
+#     enabled  = true
+#     retention_policy {
+#       enabled = true
+#       days    = 30
+#     }
+#   }
 
-  metric {
-    category = "AllMetrics"
-    enabled  = true
-    retention_policy {
-      enabled = true
-      days    = 30
-    }
-  }
-}
+#   metric {
+#     category = "AllMetrics"
+#     enabled  = true
+#     retention_policy {
+#       enabled = true
+#       days    = 30
+#     }
+#   }
+# }
