@@ -1,6 +1,5 @@
 # Azure DevOps Pipeline for Terraform
 # Supports: project/<PROJECT>/<APP> structure with dev/qa/prod environments
-# Uses: Workload Identity Federation (OIDC) for authentication
 
 parameters:
   - name: environment
@@ -31,13 +30,13 @@ parameters:
       - unlockbookings
 
 variables:
-  - group: 'terraform-backend'  # Contains BACKEND_* variables
+  - group: 'terraform-backend'
   - name: workingDirectory
     value: 'project/${{ parameters.projectName }}/${{ parameters.appName }}'
   - name: terraformVersion
     value: '1.13.0'
   - name: serviceConnection
-    value: 'EVO-Taskers-Sandbox'  # Your Azure RM service connection name
+    value: 'EVO-Taskers-Sandbox'
 
 trigger:
   branches:
@@ -58,9 +57,6 @@ pr:
       - 'modules/**'
 
 stages:
-  #############################################
-  # STAGE 1: PLAN
-  #############################################
   - stage: Plan
     displayName: 'Plan - ${{ parameters.environment }}'
     jobs:
@@ -71,56 +67,35 @@ stages:
         
         steps:
           - checkout: self
-            displayName: 'Checkout Repository'
             fetchDepth: 1
 
           - task: ms-devlabs.custom-terraform-tasks.custom-terraform-installer-task.TerraformInstaller@0
-            displayName: 'Install Terraform ${{ variables.terraformVersion }}'
+            displayName: 'Install Terraform'
             inputs:
               terraformVersion: '$(terraformVersion)'
 
           - task: AzureCLI@2
-            displayName: 'Setup Azure Authentication'
+            displayName: 'Setup Authentication'
             name: auth
             inputs:
               azureSubscription: '$(serviceConnection)'
               scriptType: 'bash'
-              scriptLocation: 'inlineScript'
               addSpnToEnvironment: true
               inlineScript: |
-                echo "##[group]Setting up Azure authentication..."
-                
-                # Debug: Show what variables are available
-                echo "=== Debug: Available Auth Variables ==="
-                echo "servicePrincipalId: ${servicePrincipalId:-(empty)}"
-                echo "tenantId: ${tenantId:-(empty)}"
-                echo "idToken length: ${#idToken}"
-                echo "servicePrincipalKey length: ${#servicePrincipalKey}"
-                echo "========================================"
-                
-                # Get subscription ID
                 SUBSCRIPTION_ID=$(az account show --query id -o tsv)
-                echo "Subscription ID: $SUBSCRIPTION_ID"
-                
-                # Set outputs for Terraform
                 echo "##vso[task.setvariable variable=ARM_CLIENT_ID;isOutput=true]$servicePrincipalId"
                 echo "##vso[task.setvariable variable=ARM_TENANT_ID;isOutput=true]$tenantId"
                 echo "##vso[task.setvariable variable=ARM_SUBSCRIPTION_ID;isOutput=true]$SUBSCRIPTION_ID"
                 
-                # Check authentication method
                 if [ -n "$idToken" ]; then
-                  echo "✓ Using Workload Identity Federation (OIDC)"
+                  echo "Using OIDC authentication"
                   echo "##vso[task.setvariable variable=ARM_USE_OIDC;isOutput=true]true"
                   echo "##vso[task.setvariable variable=ARM_OIDC_TOKEN;isOutput=true]$idToken"
                 else
-                  echo "✗ Using Service Principal with Secret (OIDC token not available)"
-                  echo "##[warning]idToken is empty - OIDC is not working. Check federated credential configuration."
+                  echo "Using Service Principal authentication"
                   echo "##vso[task.setvariable variable=ARM_USE_OIDC;isOutput=true]false"
                   echo "##vso[task.setvariable variable=ARM_CLIENT_SECRET;isOutput=true]$servicePrincipalKey"
                 fi
-                
-                echo "##[endgroup]"
-                echo "Authentication configured successfully"
 
           - task: Bash@3
             displayName: 'Terraform Init'
@@ -128,23 +103,12 @@ stages:
               targetType: 'inline'
               workingDirectory: '$(System.DefaultWorkingDirectory)/$(workingDirectory)'
               script: |
-                set -e
-                echo "##[group]Terraform Initialization"
-                echo "Working Directory: $(pwd)"
-                echo "Environment: ${{ parameters.environment }}"
-                echo "Project: ${{ parameters.projectName }}"
-                echo "Application: ${{ parameters.appName }}"
-                
-                # Initialize Terraform with backend configuration
                 terraform init \
                   -backend-config="resource_group_name=$(BACKEND_RESOURCE_GROUP_NAME)" \
                   -backend-config="storage_account_name=$(BACKEND_STORAGE_ACCOUNT_NAME)" \
                   -backend-config="container_name=$(BACKEND_CONTAINER_NAME)" \
                   -backend-config="key=${{ parameters.projectName }}-${{ parameters.appName }}-${{ parameters.environment }}.tfstate" \
                   -reconfigure
-                
-                echo "##[endgroup]"
-                echo "Terraform initialized successfully"
             env:
               ARM_CLIENT_ID: $(auth.ARM_CLIENT_ID)
               ARM_TENANT_ID: $(auth.ARM_TENANT_ID)
@@ -159,12 +123,7 @@ stages:
             inputs:
               targetType: 'inline'
               workingDirectory: '$(System.DefaultWorkingDirectory)/$(workingDirectory)'
-              script: |
-                set -e
-                echo "##[group]Terraform Validation"
-                terraform validate
-                echo "##[endgroup]"
-                echo "Validation successful"
+              script: terraform validate
 
           - task: Bash@3
             displayName: 'Terraform Plan'
@@ -173,45 +132,25 @@ stages:
               targetType: 'inline'
               workingDirectory: '$(System.DefaultWorkingDirectory)/$(workingDirectory)'
               script: |
-                set -e
-                echo "##[group]Terraform Plan for ${{ parameters.environment }}"
-                
-                # Check if tfvars file exists
                 TFVARS_FILE="${{ parameters.environment }}.tfvars"
-                if [ -f "$TFVARS_FILE" ]; then
-                  echo "Using tfvars file: $TFVARS_FILE"
-                  TFVARS_ARG="-var-file=$TFVARS_FILE"
-                else
-                  echo "##[warning]No tfvars file found: $TFVARS_FILE"
-                  TFVARS_ARG=""
-                fi
+                TFVARS_ARG=$([ -f "$TFVARS_FILE" ] && echo "-var-file=$TFVARS_FILE" || echo "")
                 
-                # Run plan with detailed exit code
                 set +e
                 terraform plan $TFVARS_ARG -out=tfplan -detailed-exitcode
-                PLAN_EXIT_CODE=$?
+                EXIT_CODE=$?
                 set -e
                 
-                # Handle exit codes
-                # 0 = no changes, 1 = error, 2 = changes present
-                if [ $PLAN_EXIT_CODE -eq 0 ]; then
-                  echo "##[section]No changes detected"
+                if [ $EXIT_CODE -eq 0 ]; then
+                  echo "No changes detected"
                   echo "##vso[task.setvariable variable=hasChanges;isOutput=true]false"
-                elif [ $PLAN_EXIT_CODE -eq 2 ]; then
-                  echo "##[section]Changes detected"
+                elif [ $EXIT_CODE -eq 2 ]; then
+                  echo "Changes detected"
                   echo "##vso[task.setvariable variable=hasChanges;isOutput=true]true"
-                  
-                  # Show plan summary
-                  echo ""
-                  echo "##[group]Plan Summary"
                   terraform show -no-color tfplan
-                  echo "##[endgroup]"
                 else
-                  echo "##[error]Terraform plan failed with exit code: $PLAN_EXIT_CODE"
+                  echo "Plan failed"
                   exit 1
                 fi
-                
-                echo "##[endgroup]"
             env:
               ARM_CLIENT_ID: $(auth.ARM_CLIENT_ID)
               ARM_TENANT_ID: $(auth.ARM_TENANT_ID)
@@ -222,37 +161,29 @@ stages:
               ARM_USE_CLI: false
 
           - task: ArchiveFiles@2
-            displayName: 'Archive Terraform Files'
+            displayName: 'Archive Plan'
             condition: eq(variables['plan.hasChanges'], 'true')
             inputs:
               rootFolderOrFile: '$(System.DefaultWorkingDirectory)/$(workingDirectory)'
               includeRootFolder: false
               archiveType: 'tar'
               tarCompression: 'gz'
-              archiveFile: '$(Build.ArtifactStagingDirectory)/terraform-${{ parameters.environment }}.tar.gz'
+              archiveFile: '$(Build.ArtifactStagingDirectory)/terraform.tar.gz'
 
           - task: PublishPipelineArtifact@1
-            displayName: 'Publish Plan Artifact'
+            displayName: 'Publish Plan'
             condition: eq(variables['plan.hasChanges'], 'true')
             inputs:
               targetPath: '$(Build.ArtifactStagingDirectory)'
-              artifact: 'terraform-plan-${{ parameters.environment }}'
-              publishLocation: 'pipeline'
+              artifact: 'terraform-plan'
 
-  #############################################
-  # STAGE 2: APPLY
-  #############################################
   - stage: Apply
     displayName: 'Apply - ${{ parameters.environment }}'
     dependsOn: Plan
-    condition: |
-      and(
-        succeeded(),
-        eq(dependencies.Plan.outputs['TerraformPlan.plan.hasChanges'], 'true')
-      )
+    condition: and(succeeded(), eq(dependencies.Plan.outputs['TerraformPlan.plan.hasChanges'], 'true'))
     jobs:
       - deployment: TerraformApply
-        displayName: 'Apply Infrastructure'
+        displayName: 'Apply'
         pool:
           vmImage: 'ubuntu-latest'
         environment: '${{ parameters.projectName }}-${{ parameters.environment }}'
@@ -261,88 +192,54 @@ stages:
             deploy:
               steps:
                 - checkout: self
-                  displayName: 'Checkout Repository'
                   fetchDepth: 1
 
                 - task: DownloadPipelineArtifact@2
-                  displayName: 'Download Plan Artifact'
+                  displayName: 'Download Plan'
                   inputs:
-                    buildType: 'current'
-                    artifactName: 'terraform-plan-${{ parameters.environment }}'
+                    artifactName: 'terraform-plan'
                     targetPath: '$(Pipeline.Workspace)/terraform-plan'
 
                 - task: ExtractFiles@1
-                  displayName: 'Extract Terraform Files'
+                  displayName: 'Extract Plan'
                   inputs:
-                    archiveFilePatterns: '$(Pipeline.Workspace)/terraform-plan/terraform-${{ parameters.environment }}.tar.gz'
+                    archiveFilePatterns: '$(Pipeline.Workspace)/terraform-plan/terraform.tar.gz'
                     destinationFolder: '$(System.DefaultWorkingDirectory)/$(workingDirectory)'
-                    cleanDestinationFolder: false
 
                 - task: ms-devlabs.custom-terraform-tasks.custom-terraform-installer-task.TerraformInstaller@0
-                  displayName: 'Install Terraform ${{ variables.terraformVersion }}'
+                  displayName: 'Install Terraform'
                   inputs:
                     terraformVersion: '$(terraformVersion)'
 
                 - task: AzureCLI@2
-                  displayName: 'Setup Azure Authentication'
+                  displayName: 'Setup Authentication'
                   name: auth
                   inputs:
                     azureSubscription: '$(serviceConnection)'
                     scriptType: 'bash'
-                    scriptLocation: 'inlineScript'
                     addSpnToEnvironment: true
                     inlineScript: |
-                      echo "##[group]Setting up Azure authentication..."
-                      
-                      # Debug: Show what variables are available
-                      echo "=== Debug: Available Auth Variables ==="
-                      echo "servicePrincipalId: ${servicePrincipalId:-(empty)}"
-                      echo "tenantId: ${tenantId:-(empty)}"
-                      echo "idToken length: ${#idToken}"
-                      echo "servicePrincipalKey length: ${#servicePrincipalKey}"
-                      echo "========================================"
-                      
                       SUBSCRIPTION_ID=$(az account show --query id -o tsv)
-                      echo "Subscription ID: $SUBSCRIPTION_ID"
-                      
                       echo "##vso[task.setvariable variable=ARM_CLIENT_ID;isOutput=true]$servicePrincipalId"
                       echo "##vso[task.setvariable variable=ARM_TENANT_ID;isOutput=true]$tenantId"
                       echo "##vso[task.setvariable variable=ARM_SUBSCRIPTION_ID;isOutput=true]$SUBSCRIPTION_ID"
                       
                       if [ -n "$idToken" ]; then
-                        echo "✓ Using Workload Identity Federation (OIDC)"
+                        echo "Using OIDC authentication"
                         echo "##vso[task.setvariable variable=ARM_USE_OIDC;isOutput=true]true"
                         echo "##vso[task.setvariable variable=ARM_OIDC_TOKEN;isOutput=true]$idToken"
                       else
-                        echo "✗ Using Service Principal with Secret (OIDC token not available)"
-                        echo "##[warning]idToken is empty - OIDC is not working. Check federated credential configuration."
+                        echo "Using Service Principal authentication"
                         echo "##vso[task.setvariable variable=ARM_USE_OIDC;isOutput=true]false"
                         echo "##vso[task.setvariable variable=ARM_CLIENT_SECRET;isOutput=true]$servicePrincipalKey"
                       fi
-                      
-                      echo "##[endgroup]"
 
                 - task: Bash@3
                   displayName: 'Terraform Apply'
                   inputs:
                     targetType: 'inline'
                     workingDirectory: '$(System.DefaultWorkingDirectory)/$(workingDirectory)'
-                    script: |
-                      set -e
-                      echo "##[group]Terraform Apply for ${{ parameters.environment }}"
-                      echo "Working Directory: $(pwd)"
-                      
-                      # Verify plan file exists
-                      if [ ! -f "tfplan" ]; then
-                        echo "##[error]Plan file not found!"
-                        exit 1
-                      fi
-                      
-                      # Apply the plan
-                      terraform apply -auto-approve tfplan
-                      
-                      echo "##[endgroup]"
-                      echo "##[section]Apply completed successfully!"
+                    script: terraform apply -auto-approve tfplan
                   env:
                     ARM_CLIENT_ID: $(auth.ARM_CLIENT_ID)
                     ARM_TENANT_ID: $(auth.ARM_TENANT_ID)
@@ -358,10 +255,7 @@ stages:
                   inputs:
                     targetType: 'inline'
                     workingDirectory: '$(System.DefaultWorkingDirectory)/$(workingDirectory)'
-                    script: |
-                      echo "##[group]Terraform Outputs"
-                      terraform output -json
-                      echo "##[endgroup]"
+                    script: terraform output -json
                   env:
                     ARM_CLIENT_ID: $(auth.ARM_CLIENT_ID)
                     ARM_TENANT_ID: $(auth.ARM_TENANT_ID)
