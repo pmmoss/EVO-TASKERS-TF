@@ -1,15 +1,10 @@
-# Backend configuration for Landing Zone state
-# This uses a separate state file from application deployments
+# Backend configuration for common infrastructure
+# Backend values provided by pipeline via -backend-config
 
 terraform {
   required_version = ">=1.2"
   
-  backend "azurerm" {
-    # resource_group_name  = "rg-evotaskers-state-pmoss"
-    # storage_account_name = "stevotaskersstatepoc"
-    # container_name       = "tfstate"
-    # key                  = "landing-zone/evo-taskers-common-dev.tfstate"
-  }
+  backend "azurerm" {}
   
   required_providers {
     azurerm = {
@@ -24,7 +19,6 @@ terraform {
 }
 
 provider "azurerm" {
-
   features {
     resource_group {
       prevent_deletion_if_contains_resources = false
