@@ -89,9 +89,9 @@ resource "azurerm_monitor_diagnostic_setting" "storage" {
   target_resource_id         = azurerm_storage_account.this.id
   log_analytics_workspace_id = var.log_analytics_workspace_id
 
-  enabled_log {
-    category = "StorageRead"
-  }
+  # enabled_log {
+  #   category = "StorageRead"
+  # }
 
   enabled_log {
     category = "StorageWrite"

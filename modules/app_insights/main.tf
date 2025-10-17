@@ -39,21 +39,21 @@ resource "azurerm_application_insights" "this" {
 }
 
 # Private endpoint for Application Insights
-resource "azurerm_private_endpoint" "app_insights" {
-  count               = var.enable_private_endpoint ? 1 : 0
-  name                = "${module.naming_pe.name}-appi"
-  location            = var.location
-  resource_group_name = var.resource_group_name
-  subnet_id           = var.subnet_id
-  tags                = var.tags
+# resource "azurerm_private_endpoint" "app_insights" {
+#   count               = var.enable_private_endpoint ? 1 : 0
+#   name                = "${module.naming_pe.name}-appi"
+#   location            = var.location
+#   resource_group_name = var.resource_group_name
+#   subnet_id           = var.subnet_id
+#   tags                = var.tags
 
-  private_service_connection {
-    name                           = "${module.naming_psc.name}-appi"
-    private_connection_resource_id  = azurerm_application_insights.this.id
-    is_manual_connection           = false
-    subresource_names              = ["api"]
-  }
-}
+#   private_service_connection {
+#     name                           = "${module.naming_psc.name}-appi"
+#     private_connection_resource_id  = azurerm_application_insights.this.id
+#     is_manual_connection           = false
+#     subresource_names              = ["api"]
+#   }
+# }
 
 # RBAC assignments for Application Insights
 resource "azurerm_role_assignment" "app_insights_admin" {
