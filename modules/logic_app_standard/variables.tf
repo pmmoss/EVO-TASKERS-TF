@@ -48,7 +48,7 @@ variable "storage_account_access_key" {
 variable "storage_account_share_name" {
   type        = string
   description = "Storage account file share name for logic app"
-  default     = "logic-app-content"
+  #default     = "logic-app-content"
 }
 
 variable "user_assigned_identity_id" {

@@ -7,6 +7,10 @@ terraform {
    backend "azurerm" {
     # ... your existing config
     use_azuread_auth = true  # Keeps backend using OIDC/WIF
+    # resource_group_name  = "rg-evotaskers-state-pmoss"
+    # storage_account_name = "stevotaskersstatepoc"
+    # container_name       = "tfstate"
+    # key                  = "landing-zone/evo-taskers-unlockbookings-dev.tfstate"
   }
   
   required_providers {
@@ -27,17 +31,13 @@ terraform {
 
 provider "azurerm" {
   # Enable OIDC for workload identity federation
-  use_oidc = true
-  use_cli  = false  # Critical: Disable CLI to force OIDC
+  subscription_id = "b2c30590-db17-4740-b3c6-6853aab1d9a2"
   features {
     resource_group {
       prevent_deletion_if_contains_resources = false
     }
   }
 }
-provider "azuread" {
-  use_oidc = true
-  use_cli  = false  # If applicable
-}
+
 
 provider "random" {}

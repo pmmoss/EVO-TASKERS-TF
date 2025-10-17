@@ -75,16 +75,13 @@ resource "azurerm_logic_app_standard" "this" {
       # Logic App settings
       "FUNCTIONS_WORKER_RUNTIME" = "node"
       "WEBSITE_NODE_DEFAULT_VERSION" = "~18"
-      "FUNCTIONS_EXTENSION_VERSION" = "~4"
       "WEBSITE_CONTENTOVERVNET" = "1"
       
       # Key Vault reference for secrets (use managed identity)
       "KeyVaultUri" = var.key_vault_uri
       
       # Workflows Runtime Settings
-      "AzureWebJobsStorage" = "DefaultEndpointsProtocol=https;AccountName=${var.storage_account_name};AccountKey=${var.storage_account_access_key};EndpointSuffix=core.windows.net"
-      "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING" = "DefaultEndpointsProtocol=https;AccountName=${var.storage_account_name};AccountKey=${var.storage_account_access_key};EndpointSuffix=core.windows.net"
-      "WEBSITE_CONTENTSHARE" = var.storage_account_share_name
+
     },
     var.additional_app_settings
   )
@@ -100,13 +97,13 @@ resource "azurerm_logic_app_standard" "this" {
     runtime_scale_monitoring_enabled = true
     
     # Extension bundle configuration (for built-in connectors)
-    dynamic "app_service_logs" {
-      for_each = var.enable_diagnostics ? [1] : []
-      content {
-        disk_quota_mb         = 35
-        retention_period_days = 7
-      }
-    }
+    # dynamic "app_service_logs" {
+    #   for_each = var.enable_diagnostics ? [1] : []
+    #   content {
+    #     disk_quota_mb         = 35
+    #     retention_period_days = 7
+    #   }
+    # }
   }
 
   # Use extension bundle if enabled - configured via app settings

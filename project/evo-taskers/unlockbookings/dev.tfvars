@@ -62,7 +62,7 @@ enable_private_endpoint = true # Set to true for production to disable public ac
 
 # Logic App Standard Configuration
 logic_app_sku = "WS1" # WS1, WS2, WS3 for Workflow Standard
-logic_app_storage_share_name = "unlockbookings-workflow-content"
+logic_app_storage_share_name = "unlockbookings-workflow-content1"
 use_extension_bundle = true
 bundle_version = "[1.*, 2.0.0)"
 
