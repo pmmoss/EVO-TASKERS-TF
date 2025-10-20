@@ -110,7 +110,7 @@ The pipeline includes optional security scanning and cost analysis stages:
 - Helps identify cost optimization opportunities
 - Compares costs across environments
 
-📖 **Setup Guide**: See [`.azure_pipelines/SECURITY-AND-COST-SETUP.md`](.azure_pipelines/SECURITY-AND-COST-SETUP.md) for detailed setup instructions.
+📖 **Pipeline Guide**: See [`.azure_pipelines/README.md`](.azure_pipelines/README.md) for setup and configuration.
 
 ## Files Structure
 
