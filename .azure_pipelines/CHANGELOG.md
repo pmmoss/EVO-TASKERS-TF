@@ -1,5 +1,28 @@
 # Pipeline Changelog
 
+## v2.1.0 - 2024-10-20
+
+### ✨ New Feature: Multi-App Pipeline
+
+**Added**: `multi-app-pipeline.yml` for deploying multiple applications
+
+**Features**:
+- Deploy multiple apps in one pipeline run
+- Sequential or parallel deployment strategies
+- Single approval for all apps
+- Reuses all existing templates
+- Combined security & cost analysis
+
+**Use Cases**:
+- Full environment deployment
+- Coordinated releases
+- Initial setup
+- Disaster recovery
+
+**Files Added**: `multi-app-pipeline.yml`
+
+---
+
 ## v2.0.1 - 2024-10-20
 
 ### 🐛 Bug Fix: Security Scan Exit Codes
@@ -64,6 +87,7 @@
 
 | Version | Date | Major Changes |
 |---------|------|---------------|
+| 2.1.0 | 2024-10-20 | Feature: Multi-app pipeline |
 | 2.0.1 | 2024-10-20 | Fix: Exit code handling |
 | 2.0.0 | 2024-10-20 | Feature: Security & cost |
 | 1.0.0 | Previous | Initial release |

@@ -2,7 +2,7 @@
 
 ## Quick Start
 
-### Running the Pipeline
+### Running a Single-App Pipeline
 
 1. **Pipelines** → **main-pipeline** → **Run pipeline**
 2. Select parameters:
@@ -11,6 +11,17 @@
    - Security Scan: ✓ (recommended)
    - Cost Analysis: ✓ (recommended)
 3. Review plan → Approve → Deploy
+
+### Running Multi-App Pipeline
+
+1. **Pipelines** → **multi-app-pipeline** → **Run pipeline**
+2. Select parameters:
+   - Environment: `dev` / `qa` / `prod`
+   - Applications: `common,automateddatafeed,dashboard` (comma-separated)
+   - Deployment Strategy: `sequential` or `parallel`
+   - Security Scan: ✓
+   - Cost Analysis: ✓
+3. Review all plans → Approve once → Deploy all apps
 
 ### First-Time Setup
 
@@ -58,9 +69,24 @@ Apply (3-10 min)
 
 \* Only runs if there are changes to apply
 
+## Pipelines
+
+### main-pipeline.yml
+**Single application deployment**
+- Deploy one app at a time
+- Full control per application
+- Best for individual app updates
+
+### multi-app-pipeline.yml  
+**Multiple application deployment**
+- Deploy multiple apps in one run
+- Sequential or parallel deployment
+- Single approval for all apps
+- Best for coordinated releases
+
 ## Templates
 
-Located in `templates/` directory:
+Located in `templates/` directory (shared by both pipelines):
 
 - **`setup-auth.yml`** - Azure OIDC/Service Principal auth
 - **`terraform-init.yml`** - Backend initialization
@@ -162,27 +188,84 @@ parameters:
       - new-app  # Add here
 ```
 
+## Multi-App Deployment
+
+### When to Use
+
+**Use Multi-App Pipeline when:**
+- Deploying full environment (common + apps)
+- Coordinated release across apps
+- Initial environment setup
+- Disaster recovery
+
+**Use Single-App Pipeline when:**
+- Updating one specific app
+- Testing changes to one app
+- Hotfixes
+- Frequent iterations
+
+### Deployment Strategies
+
+**Sequential** (default)
+```
+common → automateddatafeed → dashboard → ...
+```
+- Apps deploy one after another
+- Dependencies handled in order
+- Safer, easier to debug
+- Takes longer
+
+**Parallel**
+```
+common + automateddatafeed + dashboard (simultaneously)
+```
+- All apps deploy at once
+- Faster deployment
+- Requires apps to be independent
+- Harder to debug failures
+
+### Example: Full Stack Deployment
+
+```yaml
+Environment: dev
+Applications: common,automateddatafeed,autoopenshorex,dashboard,dashboardfrontend
+Strategy: sequential
+```
+
+This deploys all apps in order with one approval.
+
 ## Common Scenarios
 
-### Fast Dev Iteration
+### Fast Dev Iteration (Single App)
 ```yaml
+Pipeline: main-pipeline
 Run Security Scan: ☐
 Run Cost Analysis: ☐
 ```
 
-### Standard Deployment
+### Standard Deployment (Single App)
 ```yaml
+Pipeline: main-pipeline
 Run Security Scan: ✓
 Run Cost Analysis: ✓
 Fail on Security Issues: ☐
 ```
 
-### Production Deployment
+### Production Deployment (Single App)
 ```yaml
+Pipeline: main-pipeline
 Environment: prod
 Run Security Scan: ✓
 Run Cost Analysis: ✓
 Fail on Security Issues: ✓
+```
+
+### Full Environment Deployment (Multi-App)
+```yaml
+Pipeline: multi-app-pipeline
+Environment: dev
+Applications: common,app1,app2,app3
+Strategy: sequential
 ```
 
 ## Troubleshooting
