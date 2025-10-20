@@ -16,10 +16,6 @@ module "function_app" {
   # Resource group
   resource_group_name = data.terraform_remote_state.common.outputs.resource_group_name
   
-  # SKU configuration (Y1 = Consumption, EP1 = Premium, B1 = Basic/Dedicated)
-  sku_name  = var.function_app_sku
-  always_on = var.function_app_always_on
-  
   # Storage account (required for Function Apps)
   storage_account_name       = data.terraform_remote_state.common.outputs.storage_account_name
   storage_account_access_key = data.terraform_remote_state.common.outputs.storage_account_primary_access_key
@@ -46,6 +42,8 @@ module "function_app" {
   key_vault_uri = data.terraform_remote_state.common.outputs.key_vault_uri
   
   # Function runtime configuration
+  existing_service_plan_id = data.terraform_remote_state.shared.outputs.windows_function_plan_id
+  create_service_plan = false
   functions_worker_runtime = var.functions_worker_runtime
   dotnet_version          = var.dotnet_version
   
