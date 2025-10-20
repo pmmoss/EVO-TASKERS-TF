@@ -1,6 +1,32 @@
 # ==============================================================================
 # APP SERVICE PLAN VARIABLES
 # ==============================================================================
+variable "project" {
+  type        = string
+  description = "Project name"
+  default     = data.terraform_remote_state.common.outputs.project
+}
+
+variable "environment" {
+  type        = string
+  description = "Environment name"
+  default     = data.terraform_remote_state.common.outputs.environment
+}
+variable "location" {
+  type        = string
+  description = "Azure region"
+  default     = data.terraform_remote_state.common.outputs.location
+}
+variable "location_short" {
+  type        = string
+  description = "Short Azure region code"
+  default     = data.terraform_remote_state.common.outputs.location_short
+}
+variable "resource_group_name" {
+  type        = string
+  description = "Resource group name"
+  default     = data.terraform_remote_state.common.outputs.resource_group_name
+}
 
 variable "windows_function_plan_sku" {
   type        = string
