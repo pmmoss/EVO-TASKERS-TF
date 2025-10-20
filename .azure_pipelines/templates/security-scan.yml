@@ -46,20 +46,29 @@ steps:
           SKIP_ARGS="--skip-check ${{ parameters.checkovSkipChecks }}"
         fi
         
+        # Run Checkov and capture exit code
+        set +e
         checkov -d . \
           --framework terraform \
           --output cli \
           --output junitxml \
           --output-file-path $(Build.ArtifactStagingDirectory) \
-          $SKIP_ARGS \
-          || EXIT_CODE=$?
+          $SKIP_ARGS
+        EXIT_CODE=$?
+        set -e
         
-        if [ ${EXIT_CODE:-0} -ne 0 ]; then
-          echo "##[warning]Checkov found security issues"
-          exit ${EXIT_CODE}
+        # Handle results based on failOnSecurityIssues parameter
+        if [ $EXIT_CODE -ne 0 ]; then
+          if [ "${{ parameters.failOnSecurityIssues }}" == "True" ]; then
+            echo "##[error]Checkov found security issues - failing pipeline"
+            exit $EXIT_CODE
+          else
+            echo "##[warning]Checkov found security issues - continuing due to failOnSecurityIssues=false"
+            exit 0
+          fi
         fi
         
-        echo "✓ Checkov scan completed"
+        echo "✓ Checkov scan completed successfully"
 
   - task: Bash@3
     displayName: 'Run tfsec Security Scan'
@@ -70,21 +79,28 @@ steps:
       script: |
         echo "=== Running tfsec Security Scan ==="
         
+        # Run tfsec and capture exit code
+        set +e
         tfsec . \
           --format lovely \
           --format junit \
           --out $(Build.ArtifactStagingDirectory)/tfsec-results.xml \
-          --soft-fail \
-          || EXIT_CODE=$?
+          --soft-fail
+        EXIT_CODE=$?
+        set -e
         
-        if [ ${EXIT_CODE:-0} -ne 0 ] && [ "${{ parameters.failOnSecurityIssues }}" == "True" ]; then
-          echo "##[error]tfsec found security issues"
-          exit ${EXIT_CODE}
-        elif [ ${EXIT_CODE:-0} -ne 0 ]; then
-          echo "##[warning]tfsec found security issues"
+        # Handle results based on failOnSecurityIssues parameter
+        if [ $EXIT_CODE -ne 0 ]; then
+          if [ "${{ parameters.failOnSecurityIssues }}" == "True" ]; then
+            echo "##[error]tfsec found security issues - failing pipeline"
+            exit $EXIT_CODE
+          else
+            echo "##[warning]tfsec found security issues - continuing due to failOnSecurityIssues=false"
+            exit 0
+          fi
         fi
         
-        echo "✓ tfsec scan completed"
+        echo "✓ tfsec scan completed successfully"
 
   - task: Bash@3
     displayName: 'Run TFLint'
@@ -96,16 +112,21 @@ steps:
         echo "=== Running TFLint ==="
         
         # Initialize TFLint
+        set +e
         tflint --init
         
         # Run TFLint
-        tflint --format compact || EXIT_CODE=$?
+        tflint --format compact
+        EXIT_CODE=$?
+        set -e
         
-        if [ ${EXIT_CODE:-0} -ne 0 ]; then
-          echo "##[warning]TFLint found issues"
+        # TFLint always continues (informational only)
+        if [ $EXIT_CODE -ne 0 ]; then
+          echo "##[warning]TFLint found issues - review recommendations above"
         fi
         
         echo "✓ TFLint scan completed"
+        exit 0
 
   - task: PublishTestResults@2
     displayName: 'Publish Security Scan Results'

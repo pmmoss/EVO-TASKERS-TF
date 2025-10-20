@@ -44,10 +44,23 @@ Run Security Scan: false
 
 #### Fail Pipeline on Security Issues
 
-By default, security issues are reported as warnings. To fail the pipeline on security findings:
+By default, security issues are reported as **warnings only** and the pipeline continues:
+```
+Fail Pipeline on Security Issues: false  (default)
+→ Security issues logged as warnings
+→ Pipeline continues to approval stage
+→ Review findings during manual approval
+```
+
+To fail the pipeline immediately when security issues are found:
 ```
 Fail Pipeline on Security Issues: true
+→ Security issues logged as errors
+→ Pipeline stops immediately
+→ No approval stage reached
 ```
+
+**Recommendation**: Use `false` for dev/qa, `true` for production.
 
 #### Skip Specific Checks
 
@@ -218,6 +231,24 @@ With security and cost analysis enabled, the pipeline flow is:
 
 ### Security Scan Issues
 
+**"Checkov found security issues" - Pipeline failing unexpectedly**
+
+This is expected behavior! The behavior depends on the `failOnSecurityIssues` parameter:
+
+```yaml
+# Default behavior (recommended for dev/qa):
+failOnSecurityIssues: false
+→ Checkov findings show as WARNINGS
+→ Pipeline continues to approval
+→ Review findings before approving
+
+# Strict mode (recommended for prod):
+failOnSecurityIssues: true
+→ Checkov findings show as ERRORS
+→ Pipeline fails immediately
+→ Must fix issues before re-running
+```
+
 **Tools fail to install**
 ```bash
 # Check if using ubuntu-latest pool
@@ -230,6 +261,12 @@ pool:
 # Skip specific checks in the template parameters
 checkovSkipChecks: 'CKV_AZURE_1,CKV_AZURE_13'
 ```
+
+**Pipeline fails even with failOnSecurityIssues=false**
+
+Check the security scan logs - the scripts now explicitly handle the parameter:
+- Should see: "Checkov found security issues - continuing due to failOnSecurityIssues=false"
+- If not, verify you're using the latest version of `security-scan.yml` template
 
 ### Cost Analysis Issues
 
