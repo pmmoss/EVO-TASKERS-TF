@@ -40,10 +40,18 @@ BACKEND_CONTAINER_NAME: <your-container>
 INFRACOST_API_KEY: <optional> # Secret variable, get free at infracost.io
 ```
 
-**3. Environments** (for approvals)
+**3. Environments** (for approvals and concurrency control)
 ```
 Environments → New: evo-taskers-dev, evo-taskers-qa, evo-taskers-prod
+
+For each environment, configure:
+- Approvals: Add approvers (prod should require approval)
+- Deployment history: Enable for audit trail
+- Exclusive lock: ✓ (IMPORTANT - prevents concurrent deployments)
 ```
+
+**Why Exclusive Lock?**
+Prevents "stale plan" errors by ensuring only one deployment runs at a time.
 
 ## Pipeline Stages
 
@@ -270,6 +278,42 @@ Strategy: sequential
 
 ## Troubleshooting
 
+### Stale Plan Error
+
+**Error**: `Saved plan is stale - state was changed by another operation`
+
+This happens when the Terraform state changes between Plan and Apply stages.
+
+**Common Causes:**
+- Another pipeline running simultaneously
+- Manual terraform operations during pipeline run
+- Multiple people deploying at the same time
+- Long delay between approval and apply
+
+**Solutions:**
+
+**Immediate Fix:**
+1. Cancel the current pipeline run
+2. Ensure no other pipelines are running
+3. Re-run the pipeline (generates fresh plan)
+
+**Prevention:**
+```yaml
+# Use Azure DevOps environment approvals to prevent concurrent runs
+environment: 'evo-taskers-dev'  # Already configured
+```
+
+**For Multi-App Pipelines:**
+- Use sequential strategy (safer)
+- Approve quickly after plan completes
+- Deploy common infrastructure separately first
+
+**Check for Concurrent Runs:**
+```bash
+# In Azure DevOps
+Pipelines → Filter by "Running" → Cancel others
+```
+
 ### Authentication Failed
 - Check service connection configuration
 - Verify RBAC permissions (Contributor on subscription)
@@ -280,6 +324,10 @@ Strategy: sequential
 # Only if certain no other process is running
 terraform force-unlock <lock-id>
 ```
+
+**Prevention:**
+- Don't run multiple pipelines for same app/environment simultaneously
+- Environment protection rules help prevent this
 
 ### Security Scan Fails
 - **With `failOnSecurityIssues: false`**: Should show warnings and continue
@@ -294,13 +342,33 @@ terraform force-unlock <lock-id>
 - Verify variable group `terraform-backend` exists
 - Validate YAML syntax
 
+### Multi-App Deployment Fails Partially
+
+**Issue**: Some apps deployed, others failed
+
+**Sequential Strategy:**
+- Apps deploy in order
+- Failure stops remaining apps
+- Already-deployed apps are live
+- Re-run pipeline will skip successfully deployed apps
+
+**Parallel Strategy:**
+- All apps deploy simultaneously
+- Harder to debug which failed
+- May have partial deployment
+- Use sequential for easier recovery
+
 ## Best Practices
 
 1. **Use the pipeline** - Don't deploy locally
-2. **Enable security for prod** - Set `failOnSecurityIssues: true`
-3. **Review costs** - Check estimates before approval
-4. **Test in dev first** - Always test changes in lower environments
-5. **Document skipped checks** - If skipping security checks, document why
+2. **Enable exclusive locks** - Prevent concurrent deployments (see Environment setup)
+3. **Approve quickly** - Minimize time between plan and apply to avoid stale plans
+4. **Enable security for prod** - Set `failOnSecurityIssues: true`
+5. **Review costs** - Check estimates before approval
+6. **Test in dev first** - Always test changes in lower environments
+7. **Check for running pipelines** - Before starting new deployment
+8. **Use sequential for multi-app** - Safer than parallel for coordinated deploys
+9. **Document skipped checks** - If skipping security checks, document why
 
 ## Quick Commands
 

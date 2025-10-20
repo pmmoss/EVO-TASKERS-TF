@@ -10,7 +10,7 @@ parameters:
 
 steps:
   - task: Bash@3
-    displayName: 'Terraform Apply'
+    displayName: 'Verify State and Apply'
     inputs:
       targetType: 'inline'
       workingDirectory: '$(System.DefaultWorkingDirectory)/${{ parameters.workingDirectory }}'
@@ -25,7 +25,38 @@ steps:
         echo "ARM_USE_CLI: ${ARM_USE_CLI:-(empty)}"
         echo "=============================================="
         
+        # Check if plan file exists
+        if [ ! -f "tfplan" ]; then
+          echo "##[error]Plan file not found. Cannot apply."
+          exit 1
+        fi
+        
+        # Refresh state to check for changes
+        echo "Checking state for changes..."
+        terraform state list > /dev/null 2>&1 || echo "State is empty or new"
+        
+        # Apply the plan
+        echo "Applying Terraform plan..."
+        set +e
         terraform apply -auto-approve tfplan
+        APPLY_EXIT=$?
+        set -e
+        
+        if [ $APPLY_EXIT -eq 0 ]; then
+          echo "✓ Apply completed successfully"
+        elif [ $APPLY_EXIT -eq 1 ]; then
+          echo "##[error]Apply failed - check errors above"
+          echo ""
+          echo "Common causes:"
+          echo "1. State was changed by another operation (stale plan)"
+          echo "2. Resources already exist or were deleted"
+          echo "3. Permissions issue"
+          echo ""
+          echo "To resolve stale plan errors:"
+          echo "- Ensure no other pipelines are running"
+          echo "- Re-run the pipeline to generate a fresh plan"
+          exit 1
+        fi
     env:
       ARM_CLIENT_ID: $(${{ parameters.authStepName }}.ARM_CLIENT_ID)
       ARM_TENANT_ID: $(${{ parameters.authStepName }}.ARM_TENANT_ID)

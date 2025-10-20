@@ -1,5 +1,30 @@
 # Pipeline Changelog
 
+## v2.1.1 - 2024-10-20
+
+### 🐛 Bug Fix: Stale Plan Handling
+
+**Issue**: "Saved plan is stale" error when state changes between plan and apply
+
+**Improvements**:
+- Better error messages in apply stage
+- Troubleshooting guide for stale plans
+- Environment exclusive lock recommendation
+- Best practices for preventing concurrent runs
+
+**Root Cause**: State modified by concurrent pipelines or manual operations
+
+**Prevention**:
+- Enable exclusive lock on environments
+- Approve quickly after plan
+- Avoid concurrent pipeline runs
+
+**Files Changed**: 
+- `templates/terraform-apply.yml`
+- `.azure_pipelines/README.md`
+
+---
+
 ## v2.1.0 - 2024-10-20
 
 ### ✨ New Feature: Multi-App Pipeline
@@ -87,6 +112,7 @@
 
 | Version | Date | Major Changes |
 |---------|------|---------------|
+| 2.1.1 | 2024-10-20 | Fix: Stale plan handling |
 | 2.1.0 | 2024-10-20 | Feature: Multi-app pipeline |
 | 2.0.1 | 2024-10-20 | Fix: Exit code handling |
 | 2.0.0 | 2024-10-20 | Feature: Security & cost |
