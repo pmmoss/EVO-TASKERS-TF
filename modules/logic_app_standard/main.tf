@@ -26,6 +26,14 @@ module "naming_la" {
   location_short = var.location_short
 }
 
+module "naming_pe" {
+  source         = "../naming"
+  resource_type  = "pe"
+  project        = var.project
+  environment    = var.environment
+  location       = var.location
+  location_short = var.location_short
+}
 # App Service Plan for Logic App Standard (Workflow Standard SKU)
 resource "azurerm_service_plan" "this" {
   name                = "${module.naming_asp.name}-${var.app_name}"
@@ -123,13 +131,13 @@ resource "azurerm_logic_app_standard" "this" {
 # Private Endpoint for Logic App (optional, recommended for production)
 resource "azurerm_private_endpoint" "logic_app" {
   count               = var.enable_private_endpoint ? 1 : 0
-  name                = "pe-${var.app_name}-${module.naming_la.name}"
+  name                = "${module.naming_pe.name}-${var.app_name}"
   location            = var.location
   resource_group_name = var.resource_group_name
   subnet_id           = var.private_endpoint_subnet_id
 
   private_service_connection {
-    name                           = "psc-${module.naming_la.name}"
+    name                           = "psc-${module.naming_la.name}-${var.app_name}"
     private_connection_resource_id = azurerm_logic_app_standard.this.id
     is_manual_connection           = false
     subresource_names              = ["sites"]

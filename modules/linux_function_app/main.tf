@@ -26,6 +26,15 @@ module "naming_fa" {
   location_short = var.location_short
 }
 
+module "naming_pe" {
+  source         = "../naming"
+  resource_type  = "pe"
+  project        = var.project
+  environment    = var.environment
+  location       = var.location
+  location_short = var.location_short
+}
+
 # App Service Plan for Linux Function Apps (separate from Web App plan)
 resource "azurerm_service_plan" "this" {
   name                = "${module.naming_asp.name}-${var.app_name}-func"
@@ -129,7 +138,7 @@ resource "azurerm_linux_function_app" "this" {
 # Private Endpoint for Function App (optional, recommended for production)
 resource "azurerm_private_endpoint" "function_app" {
   count               = var.enable_private_endpoint ? 1 : 0
-  name                = "pe-${var.app_name}-${module.naming_fa.name}"
+  name                = "${module.naming_pe.name}-${var.app_name}"
   location            = var.location
   resource_group_name = var.resource_group_name
   subnet_id           = var.private_endpoint_subnet_id
