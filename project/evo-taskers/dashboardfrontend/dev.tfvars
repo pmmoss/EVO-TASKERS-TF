@@ -1,10 +1,12 @@
 # Dashboard Frontend - Development Environment Configuration
-# Apply with: terraform workspace select dev && terraform apply -var-file="dev.tfvars"
+# Apply with: terraform apply -var-file="dev.tfvars"
 
 # ==============================================================================
 # APPLICATION IDENTIFIER
 # ==============================================================================
 
+# Environment identifier (required)
+environment = "dev"
 app_name = "dashboardfrontend"
 
 # ==============================================================================

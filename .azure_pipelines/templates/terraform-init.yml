@@ -1,0 +1,55 @@
+# Template: Terraform Init
+# Initializes Terraform with backend configuration
+
+parameters:
+  - name: workingDirectory
+    type: string
+  - name: projectName
+    type: string
+  - name: appName
+    type: string
+  - name: environment
+    type: string
+  - name: backendResourceGroupName
+    type: string
+  - name: backendStorageAccountName
+    type: string
+  - name: backendContainerName
+    type: string
+  - name: authStepName
+    type: string
+    default: 'auth'
+
+steps:
+  - task: Bash@3
+    displayName: 'Terraform Init'
+    inputs:
+      targetType: 'inline'
+      addSpnToEnvironment: true
+      workingDirectory: '$(System.DefaultWorkingDirectory)/${{ parameters.workingDirectory }}'
+      script: |
+        echo "=== DEBUG: Terraform Environment Variables ==="
+        echo "ARM_CLIENT_ID: ${ARM_CLIENT_ID:-(empty)}"
+        echo "ARM_TENANT_ID: ${ARM_TENANT_ID:-(empty)}"
+        echo "ARM_SUBSCRIPTION_ID: ${ARM_SUBSCRIPTION_ID:-(empty)}"
+        echo "ARM_USE_OIDC: ${ARM_USE_OIDC:-(empty)}"
+        echo "ARM_OIDC_TOKEN length: ${#ARM_OIDC_TOKEN}"
+        echo "ARM_CLIENT_SECRET length: ${#ARM_CLIENT_SECRET}"
+        echo "ARM_USE_CLI: ${ARM_USE_CLI:-(empty)}"
+        echo "=============================================="
+        
+        terraform init \
+          -backend-config="resource_group_name=${{ parameters.backendResourceGroupName }}" \
+          -backend-config="storage_account_name=${{ parameters.backendStorageAccountName }}" \
+          -backend-config="container_name=${{ parameters.backendContainerName }}" \
+          -backend-config="key=landing-zone/${{ parameters.projectName }}-${{ parameters.appName }}-${{ parameters.environment }}.tfstate" \
+          -reconfigure
+    env:
+      ARM_CLIENT_ID: $(${{ parameters.authStepName }}.ARM_CLIENT_ID)
+      ARM_TENANT_ID: $(${{ parameters.authStepName }}.ARM_TENANT_ID)
+      ARM_SUBSCRIPTION_ID: $(${{ parameters.authStepName }}.ARM_SUBSCRIPTION_ID)
+      ARM_USE_OIDC: $(${{ parameters.authStepName }}.ARM_USE_OIDC)
+      ARM_OIDC_TOKEN: $(${{ parameters.authStepName }}.ARM_OIDC_TOKEN)
+      ARM_CLIENT_SECRET: $(${{ parameters.authStepName }}.ARM_CLIENT_SECRET)
+      ARM_USE_CLI: false
+

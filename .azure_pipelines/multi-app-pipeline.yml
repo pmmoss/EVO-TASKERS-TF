@@ -1,0 +1,479 @@
+# Azure DevOps Pipeline for Multi-App Terraform Deployment
+# Deploys multiple applications in a single pipeline run
+# Reuses all templates from main-pipeline.yml
+
+parameters:
+  - name: environment
+    displayName: 'Environment'
+    type: string
+    default: 'dev'
+    values:
+      - dev
+      - qa
+      - prod
+  
+  - name: projectName
+    displayName: 'Project Name'
+    type: string
+    default: 'evo-taskers'
+  
+  - name: appsToDepl
+    displayName: 'Applications to Deploy (comma-separated)'
+    type: string
+    default: 'common,automateddatafeed,dashboard'
+  
+  - name: deploymentStrategy
+    displayName: 'Deployment Strategy'
+    type: string
+    default: 'sequential'
+    values:
+      - sequential  # Deploy apps one after another
+      - parallel    # Deploy all apps at once
+  
+  - name: runSecurityScan
+    displayName: 'Run Security Scan'
+    type: boolean
+    default: true
+  
+  - name: runCostAnalysis
+    displayName: 'Run Cost Analysis'
+    type: boolean
+    default: true
+  
+  - name: failOnSecurityIssues
+    displayName: 'Fail Pipeline on Security Issues'
+    type: boolean
+    default: false
+
+variables:
+  - group: 'terraform-backend'
+  - name: terraformVersion
+    value: '1.13.0'
+  - name: serviceConnection
+    value: 'EVO-Taskers-Sandbox'
+  - name: appList
+    value: ${{ parameters.appsToDepl }}
+
+stages:
+  # ============================================
+  # PLAN STAGE: All Apps
+  # ============================================
+  - stage: PlanAll
+    displayName: 'Plan - ${{ parameters.environment }}'
+    jobs:
+      - job: PlanAllApps
+        displayName: 'Plan All Applications'
+        pool:
+          vmImage: 'ubuntu-latest'
+        
+        steps:
+          - checkout: self
+            fetchDepth: 1
+
+          - task: ms-devlabs.custom-terraform-tasks.custom-terraform-installer-task.TerraformInstaller@0
+            displayName: 'Install Terraform'
+            inputs:
+              terraformVersion: '$(terraformVersion)'
+
+          - template: templates/setup-auth.yml
+            parameters:
+              serviceConnection: '$(serviceConnection)'
+
+          - task: Bash@3
+            displayName: 'Plan All Apps'
+            name: planApps
+            inputs:
+              targetType: 'inline'
+              script: |
+                echo "Planning multiple applications: ${{ parameters.appsToDepl }}"
+                
+                IFS=',' read -ra APPS <<< "${{ parameters.appsToDepl }}"
+                HAS_CHANGES=false
+                
+                for APP in "${APPS[@]}"; do
+                  APP=$(echo "$APP" | xargs)  # Trim whitespace
+                  echo ""
+                  echo "=========================================="
+                  echo "Planning: $APP"
+                  echo "=========================================="
+                  
+                  WORK_DIR="project/${{ parameters.projectName }}/$APP"
+                  
+                  cd "$(System.DefaultWorkingDirectory)/$WORK_DIR"
+                  
+                  # Initialize
+                  terraform init \
+                    -backend-config="resource_group_name=$(BACKEND_RESOURCE_GROUP_NAME)" \
+                    -backend-config="storage_account_name=$(BACKEND_STORAGE_ACCOUNT_NAME)" \
+                    -backend-config="container_name=$(BACKEND_CONTAINER_NAME)" \
+                    -backend-config="key=landing-zone/${{ parameters.projectName }}-$APP-${{ parameters.environment }}.tfstate" \
+                    -reconfigure
+                  
+                  # Validate
+                  terraform validate
+                  
+                  # Plan
+                  TFVARS_FILE="${{ parameters.environment }}.tfvars"
+                  TFVARS_ARG=""
+                  if [ -f "$TFVARS_FILE" ]; then
+                    TFVARS_ARG="-var-file=$TFVARS_FILE"
+                  fi
+                  
+                  set +e
+                  terraform plan $TFVARS_ARG -out=tfplan-$APP -detailed-exitcode
+                  EXIT_CODE=$?
+                  set -e
+                  
+                  if [ $EXIT_CODE -eq 2 ]; then
+                    echo "✓ Changes detected for $APP"
+                    HAS_CHANGES=true
+                  elif [ $EXIT_CODE -eq 0 ]; then
+                    echo "✓ No changes for $APP"
+                  else
+                    echo "✗ Plan failed for $APP"
+                    exit 1
+                  fi
+                  
+                  cd "$(System.DefaultWorkingDirectory)"
+                done
+                
+                echo "##vso[task.setvariable variable=hasChanges;isOutput=true]$HAS_CHANGES"
+                echo ""
+                echo "Planning complete for all applications"
+            env:
+              ARM_CLIENT_ID: $(auth.ARM_CLIENT_ID)
+              ARM_TENANT_ID: $(auth.ARM_TENANT_ID)
+              ARM_SUBSCRIPTION_ID: $(auth.ARM_SUBSCRIPTION_ID)
+              ARM_USE_OIDC: $(auth.ARM_USE_OIDC)
+              ARM_OIDC_TOKEN: $(auth.ARM_OIDC_TOKEN)
+              ARM_CLIENT_SECRET: $(auth.ARM_CLIENT_SECRET)
+              ARM_USE_CLI: false
+
+          - task: ArchiveFiles@2
+            displayName: 'Archive Plans'
+            condition: eq(variables['planApps.hasChanges'], 'true')
+            inputs:
+              rootFolderOrFile: '$(System.DefaultWorkingDirectory)/project/${{ parameters.projectName }}'
+              includeRootFolder: false
+              archiveType: 'tar'
+              tarCompression: 'gz'
+              archiveFile: '$(Build.ArtifactStagingDirectory)/terraform-multi.tar.gz'
+
+          - task: PublishPipelineArtifact@1
+            displayName: 'Publish Plans'
+            condition: eq(variables['planApps.hasChanges'], 'true')
+            inputs:
+              targetPath: '$(Build.ArtifactStagingDirectory)'
+              artifact: 'terraform-plans'
+
+  # ============================================
+  # SECURITY SCAN STAGE
+  # ============================================
+  - stage: SecurityScan
+    displayName: 'Security Scan - ${{ parameters.environment }}'
+    dependsOn: PlanAll
+    condition: and(succeeded(), eq('${{ parameters.runSecurityScan }}', 'true'))
+    jobs:
+      - job: SecurityScanAll
+        displayName: 'Scan All Applications'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - checkout: self
+            fetchDepth: 1
+
+          - task: Bash@3
+            displayName: 'Install Security Tools'
+            inputs:
+              targetType: 'inline'
+              script: |
+                pip3 install checkov
+                curl -s https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
+                curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
+
+          - task: Bash@3
+            displayName: 'Security Scan All Apps'
+            continueOnError: ${{ not(parameters.failOnSecurityIssues) }}
+            inputs:
+              targetType: 'inline'
+              script: |
+                IFS=',' read -ra APPS <<< "${{ parameters.appsToDepl }}"
+                
+                for APP in "${APPS[@]}"; do
+                  APP=$(echo "$APP" | xargs)
+                  echo "=========================================="
+                  echo "Scanning: $APP"
+                  echo "=========================================="
+                  
+                  WORK_DIR="$(System.DefaultWorkingDirectory)/project/${{ parameters.projectName }}/$APP"
+                  cd "$WORK_DIR"
+                  
+                  # Checkov
+                  set +e
+                  checkov -d . --framework terraform --output cli
+                  CHECKOV_EXIT=$?
+                  set -e
+                  
+                  if [ $CHECKOV_EXIT -ne 0 ]; then
+                    if [ "${{ parameters.failOnSecurityIssues }}" == "True" ]; then
+                      echo "##[error]Security issues found in $APP"
+                      exit 1
+                    else
+                      echo "##[warning]Security issues found in $APP"
+                    fi
+                  fi
+                done
+
+  # ============================================
+  # COST ANALYSIS STAGE
+  # ============================================
+  - stage: CostAnalysis
+    displayName: 'Cost Analysis - ${{ parameters.environment }}'
+    dependsOn: PlanAll
+    condition: and(succeeded(), eq('${{ parameters.runCostAnalysis }}', 'true'))
+    jobs:
+      - job: CostAnalysisAll
+        displayName: 'Cost Analysis All Apps'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - checkout: self
+            fetchDepth: 1
+
+          - task: ms-devlabs.custom-terraform-tasks.custom-terraform-installer-task.TerraformInstaller@0
+            displayName: 'Install Terraform'
+            inputs:
+              terraformVersion: '$(terraformVersion)'
+
+          - task: Bash@3
+            displayName: 'Install Infracost'
+            inputs:
+              targetType: 'inline'
+              script: |
+                curl -fsSL https://raw.githubusercontent.com/infracost/infracost/master/scripts/install.sh | sh
+
+          - task: Bash@3
+            displayName: 'Cost Analysis All Apps'
+            continueOnError: true
+            inputs:
+              targetType: 'inline'
+              script: |
+                IFS=',' read -ra APPS <<< "${{ parameters.appsToDepl }}"
+                TOTAL_COST=0
+                
+                echo "======================================"
+                echo "Cost Analysis - All Applications"
+                echo "======================================"
+                echo ""
+                
+                for APP in "${APPS[@]}"; do
+                  APP=$(echo "$APP" | xargs)
+                  echo "App: $APP"
+                  echo "--------------------------------------"
+                  
+                  WORK_DIR="$(System.DefaultWorkingDirectory)/project/${{ parameters.projectName }}/$APP"
+                  cd "$WORK_DIR"
+                  
+                  TFVARS_FILE="${{ parameters.environment }}.tfvars"
+                  TFVARS_ARG=""
+                  if [ -f "$TFVARS_FILE" ]; then
+                    TFVARS_ARG="--terraform-var-file=$TFVARS_FILE"
+                  fi
+                  
+                  infracost breakdown --path . $TFVARS_ARG --format table || true
+                  echo ""
+                done
+                
+                echo "======================================"
+            env:
+              INFRACOST_API_KEY: $(INFRACOST_API_KEY)
+
+  # ============================================
+  # APPROVAL STAGE
+  # ============================================
+  - stage: Approval
+    displayName: 'Approval - ${{ parameters.environment }}'
+    dependsOn: 
+      - PlanAll
+      - SecurityScan
+      - CostAnalysis
+    condition: |
+      and(
+        eq(dependencies.PlanAll.result, 'Succeeded'),
+        eq(dependencies.PlanAll.outputs['PlanAllApps.planApps.hasChanges'], 'true'),
+        in(dependencies.SecurityScan.result, 'Succeeded', 'Skipped'),
+        in(dependencies.CostAnalysis.result, 'Succeeded', 'Skipped')
+      )
+    jobs:
+      - job: WaitForApproval
+        displayName: 'Approve Multi-App Deployment'
+        pool: server
+        steps:
+          - task: ManualValidation@0
+            displayName: 'Review and Approve'
+            inputs:
+              notifyUsers: ''
+              instructions: |
+                Multi-App Deployment Review
+                
+                Environment: ${{ parameters.environment }}
+                Applications: ${{ parameters.appsToDepl }}
+                Strategy: ${{ parameters.deploymentStrategy }}
+                
+                Review plans, security scans, and cost estimates.
+                Approve to deploy all applications.
+              onTimeout: 'reject'
+
+  # ============================================
+  # APPLY STAGE: Sequential
+  # ============================================
+  - ${{ if eq(parameters.deploymentStrategy, 'sequential') }}:
+    - stage: ApplySequential
+      displayName: 'Apply Sequential - ${{ parameters.environment }}'
+      dependsOn: Approval
+      condition: succeeded()
+      jobs:
+        - deployment: DeployAll
+          displayName: 'Deploy All Apps (Sequential)'
+          pool:
+            vmImage: 'ubuntu-latest'
+          environment: '${{ parameters.projectName }}-${{ parameters.environment }}'
+          strategy:
+            runOnce:
+              deploy:
+                steps:
+                  - checkout: self
+                    fetchDepth: 1
+
+                  - task: DownloadPipelineArtifact@2
+                    displayName: 'Download Plans'
+                    inputs:
+                      artifactName: 'terraform-plans'
+                      targetPath: '$(Pipeline.Workspace)/terraform-plans'
+
+                  - task: ExtractFiles@1
+                    displayName: 'Extract Plans'
+                    inputs:
+                      archiveFilePatterns: '$(Pipeline.Workspace)/terraform-plans/terraform-multi.tar.gz'
+                      destinationFolder: '$(System.DefaultWorkingDirectory)/project/${{ parameters.projectName }}'
+
+                  - task: ms-devlabs.custom-terraform-tasks.custom-terraform-installer-task.TerraformInstaller@0
+                    displayName: 'Install Terraform'
+                    inputs:
+                      terraformVersion: '$(terraformVersion)'
+
+                  - template: templates/setup-auth.yml
+                    parameters:
+                      serviceConnection: '$(serviceConnection)'
+
+                  - task: Bash@3
+                    displayName: 'Apply All Apps (Sequential)'
+                    inputs:
+                      targetType: 'inline'
+                      script: |
+                        IFS=',' read -ra APPS <<< "${{ parameters.appsToDepl }}"
+                        
+                        for APP in "${APPS[@]}"; do
+                          APP=$(echo "$APP" | xargs)
+                          echo ""
+                          echo "=========================================="
+                          echo "Applying: $APP"
+                          echo "=========================================="
+                          
+                          WORK_DIR="$(System.DefaultWorkingDirectory)/project/${{ parameters.projectName }}/$APP"
+                          cd "$WORK_DIR"
+                          
+                          if [ -f "tfplan-$APP" ]; then
+                            terraform apply -auto-approve tfplan-$APP
+                            echo "✓ Applied $APP successfully"
+                          else
+                            echo "⊘ No changes for $APP, skipping"
+                          fi
+                        done
+                        
+                        echo ""
+                        echo "All applications deployed successfully"
+                    env:
+                      ARM_CLIENT_ID: $(auth.ARM_CLIENT_ID)
+                      ARM_TENANT_ID: $(auth.ARM_TENANT_ID)
+                      ARM_SUBSCRIPTION_ID: $(auth.ARM_SUBSCRIPTION_ID)
+                      ARM_USE_OIDC: $(auth.ARM_USE_OIDC)
+                      ARM_OIDC_TOKEN: $(auth.ARM_OIDC_TOKEN)
+                      ARM_CLIENT_SECRET: $(auth.ARM_CLIENT_SECRET)
+                      ARM_USE_CLI: false
+
+  # ============================================
+  # APPLY STAGE: Parallel
+  # ============================================
+  - ${{ if eq(parameters.deploymentStrategy, 'parallel') }}:
+    - stage: ApplyParallel
+      displayName: 'Apply Parallel - ${{ parameters.environment }}'
+      dependsOn: Approval
+      condition: succeeded()
+      jobs:
+        - deployment: DeployAll
+          displayName: 'Deploy All Apps (Parallel)'
+          pool:
+            vmImage: 'ubuntu-latest'
+          environment: '${{ parameters.projectName }}-${{ parameters.environment }}'
+          strategy:
+            runOnce:
+              deploy:
+                steps:
+                  - checkout: self
+                    fetchDepth: 1
+
+                  - task: DownloadPipelineArtifact@2
+                    displayName: 'Download Plans'
+                    inputs:
+                      artifactName: 'terraform-plans'
+                      targetPath: '$(Pipeline.Workspace)/terraform-plans'
+
+                  - task: ExtractFiles@1
+                    displayName: 'Extract Plans'
+                    inputs:
+                      archiveFilePatterns: '$(Pipeline.Workspace)/terraform-plans/terraform-multi.tar.gz'
+                      destinationFolder: '$(System.DefaultWorkingDirectory)/project/${{ parameters.projectName }}'
+
+                  - task: ms-devlabs.custom-terraform-tasks.custom-terraform-installer-task.TerraformInstaller@0
+                    displayName: 'Install Terraform'
+                    inputs:
+                      terraformVersion: '$(terraformVersion)'
+
+                  - template: templates/setup-auth.yml
+                    parameters:
+                      serviceConnection: '$(serviceConnection)'
+
+                  - task: Bash@3
+                    displayName: 'Apply All Apps (Parallel)'
+                    inputs:
+                      targetType: 'inline'
+                      script: |
+                        IFS=',' read -ra APPS <<< "${{ parameters.appsToDepl }}"
+                        
+                        # Start all applies in background
+                        for APP in "${APPS[@]}"; do
+                          APP=$(echo "$APP" | xargs)
+                          WORK_DIR="$(System.DefaultWorkingDirectory)/project/${{ parameters.projectName }}/$APP"
+                          
+                          (
+                            cd "$WORK_DIR"
+                            echo "Starting apply for $APP..."
+                            if [ -f "tfplan-$APP" ]; then
+                              terraform apply -auto-approve tfplan-$APP
+                              echo "✓ $APP completed"
+                            fi
+                          ) &
+                        done
+                        
+                        # Wait for all to complete
+                        wait
+                        echo "All applications deployed in parallel"
+                    env:
+                      ARM_CLIENT_ID: $(auth.ARM_CLIENT_ID)
+                      ARM_TENANT_ID: $(auth.ARM_TENANT_ID)
+                      ARM_SUBSCRIPTION_ID: $(auth.ARM_SUBSCRIPTION_ID)
+                      ARM_USE_OIDC: $(auth.ARM_USE_OIDC)
+                      ARM_OIDC_TOKEN: $(auth.ARM_OIDC_TOKEN)
+                      ARM_CLIENT_SECRET: $(auth.ARM_CLIENT_SECRET)
+                      ARM_USE_CLI: false

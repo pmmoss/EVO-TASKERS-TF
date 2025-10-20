@@ -1,0 +1,223 @@
+# Azure DevOps Pipeline for Terraform
+# Uses: Workload Identity Federation (OIDC) for authentication
+# NO GATEKEEPER
+# POC ONLY - DO NOT USE IN PRODUCTION
+# Supports: project/<PROJECT>/<APP> structure with dev/qa/prod environments
+
+parameters:
+  - name: environment
+    displayName: 'Environment'
+    type: string
+    default: 'dev'
+    values:
+      - dev
+      - qa
+      - prod
+  
+  - name: projectName
+    displayName: 'Project Name'
+    type: string
+    default: 'evo-taskers'
+  
+  - name: appName
+    displayName: 'Application Name'
+    type: string
+    default: 'automateddatafeed'
+    values:
+      - common
+      - automateddatafeed
+      - autoopenshorex
+      - dashboard
+      - dashboardfrontend
+      - sendgridfunction
+      - unlockbookings
+  
+  - name: runSecurityScan
+    displayName: 'Run Security Scan'
+    type: boolean
+    default: true
+  
+  - name: runCostAnalysis
+    displayName: 'Run Cost Analysis'
+    type: boolean
+    default: true
+  
+  - name: failOnSecurityIssues
+    displayName: 'Fail Pipeline on Security Issues'
+    type: boolean
+    default: false
+
+variables:
+  - group: 'terraform-backend'
+  # Optional: Add 'INFRACOST_API_KEY' to terraform-backend variable group for cost analysis
+  # Sign up free at https://www.infracost.io/
+  - name: workingDirectory
+    value: 'project/${{ parameters.projectName }}/${{ parameters.appName }}'
+  - name: terraformVersion
+    value: '1.13.0'
+  - name: serviceConnection
+    value: 'EVO-Taskers-Sandbox'
+
+# trigger:
+#   branches:
+#     include:
+#       - main
+#   paths:
+#     include:
+#       - 'project/**'
+#       - 'modules/**'
+
+# pr:
+#   branches:
+#     include:
+#       - main
+#   paths:
+#     include:
+#       - 'project/**'
+#       - 'modules/**'
+
+stages:
+  - stage: Plan
+    displayName: 'Plan - ${{ parameters.environment }}'
+    jobs:
+      - job: TerraformPlan
+        displayName: 'Terraform Plan'
+        pool:
+          vmImage: 'ubuntu-latest'
+        
+        steps:
+          - checkout: self
+            fetchDepth: 1
+
+          - task: ms-devlabs.custom-terraform-tasks.custom-terraform-installer-task.TerraformInstaller@0
+            displayName: 'Install Terraform'
+            inputs:
+              terraformVersion: '$(terraformVersion)'
+
+          - template: templates/setup-auth.yml
+            parameters:
+              serviceConnection: '$(serviceConnection)'
+
+          - template: templates/terraform-init.yml
+            parameters:
+              workingDirectory: '$(workingDirectory)'
+              projectName: '${{ parameters.projectName }}'
+              appName: '${{ parameters.appName }}'
+              environment: '${{ parameters.environment }}'
+              backendResourceGroupName: '$(BACKEND_RESOURCE_GROUP_NAME)'
+              backendStorageAccountName: '$(BACKEND_STORAGE_ACCOUNT_NAME)'
+              backendContainerName: '$(BACKEND_CONTAINER_NAME)'
+
+          - template: templates/terraform-plan.yml
+            parameters:
+              workingDirectory: '$(workingDirectory)'
+              environment: '${{ parameters.environment }}'
+
+  - stage: SecurityScan
+    displayName: 'Security Scan - ${{ parameters.environment }}'
+    dependsOn: Plan
+    condition: and(succeeded(), eq('${{ parameters.runSecurityScan }}', 'true'))
+    jobs:
+      - job: SecurityAnalysis
+        displayName: 'Security Analysis'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - checkout: self
+            fetchDepth: 1
+
+          - template: templates/security-scan.yml
+            parameters:
+              workingDirectory: '$(workingDirectory)'
+              failOnSecurityIssues: ${{ parameters.failOnSecurityIssues }}
+
+  - stage: CostAnalysis
+    displayName: 'Cost Analysis - ${{ parameters.environment }}'
+    dependsOn: Plan
+    condition: and(succeeded(), eq('${{ parameters.runCostAnalysis }}', 'true'))
+    jobs:
+      - job: CostEstimation
+        displayName: 'Cost Estimation'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - checkout: self
+            fetchDepth: 1
+
+          - task: ms-devlabs.custom-terraform-tasks.custom-terraform-installer-task.TerraformInstaller@0
+            displayName: 'Install Terraform'
+            inputs:
+              terraformVersion: '$(terraformVersion)'
+
+          - template: templates/cost-analysis.yml
+            parameters:
+              workingDirectory: '$(workingDirectory)'
+              environment: '${{ parameters.environment }}'
+              infraCostApiKey: '$(INFRACOST_API_KEY)'
+
+  - stage: Approval
+    displayName: 'Approval - ${{ parameters.environment }}'
+    dependsOn: 
+      - Plan
+      - SecurityScan
+      - CostAnalysis
+    condition: |
+      and(
+        eq(dependencies.Plan.result, 'Succeeded'),
+        eq(dependencies.Plan.outputs['TerraformPlan.plan.hasChanges'], 'true'),
+        in(dependencies.SecurityScan.result, 'Succeeded', 'Skipped'),
+        in(dependencies.CostAnalysis.result, 'Succeeded', 'Skipped')
+      )
+    jobs:
+      - job: WaitForApproval
+        displayName: 'Wait for Manual Approval'
+        pool: server
+        steps:
+          - task: ManualValidation@0
+            displayName: 'Review and Approve Terraform Plan'
+            inputs:
+              notifyUsers: ''
+              instructions: 'Please review the Terraform plan output and approve to proceed with apply.'
+              onTimeout: 'reject'
+
+  - stage: Apply
+    displayName: 'Apply - ${{ parameters.environment }}'
+    dependsOn: Approval
+    condition: succeeded()
+    jobs:
+      - deployment: TerraformApply
+        displayName: 'Apply'
+        pool:
+          vmImage: 'ubuntu-latest'
+        environment: '${{ parameters.projectName }}-${{ parameters.environment }}'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                  fetchDepth: 1
+
+                - task: DownloadPipelineArtifact@2
+                  displayName: 'Download Plan'
+                  inputs:
+                    artifactName: 'terraform-plan'
+                    targetPath: '$(Pipeline.Workspace)/terraform-plan'
+
+                - task: ExtractFiles@1
+                  displayName: 'Extract Plan'
+                  inputs:
+                    archiveFilePatterns: '$(Pipeline.Workspace)/terraform-plan/terraform.tar.gz'
+                    destinationFolder: '$(System.DefaultWorkingDirectory)/$(workingDirectory)'
+
+                - task: ms-devlabs.custom-terraform-tasks.custom-terraform-installer-task.TerraformInstaller@0
+                  displayName: 'Install Terraform'
+                  inputs:
+                    terraformVersion: '$(terraformVersion)'
+
+                - template: templates/setup-auth.yml
+                  parameters:
+                    serviceConnection: '$(serviceConnection)'
+
+                - template: templates/terraform-apply.yml
+                  parameters:
+                    workingDirectory: '$(workingDirectory)'

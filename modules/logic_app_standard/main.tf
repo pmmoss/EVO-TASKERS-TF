@@ -17,9 +17,9 @@ module "naming_asp" {
   location_short = var.location_short
 }
 
-module "naming_fa" {
+module "naming_la" {
   source         = "../naming"
-  resource_type  = "fa"
+  resource_type  = "la"
   project        = var.project
   environment    = var.environment
   location       = var.location
@@ -34,13 +34,12 @@ module "naming_pe" {
   location       = var.location
   location_short = var.location_short
 }
-
-# App Service Plan for Linux Function Apps (separate from Web App plan)
+# App Service Plan for Logic App Standard (Workflow Standard SKU)
 resource "azurerm_service_plan" "this" {
-  name                = "${module.naming_asp.name}-${var.app_name}-func"
+  name                = "${module.naming_asp.name}-${var.app_name}"
   location            = var.location
   resource_group_name = var.resource_group_name
-  os_type             = "Linux"
+  os_type             = "Windows"
   sku_name            = var.sku_name
   
   tags = merge(var.tags, {
@@ -48,14 +47,15 @@ resource "azurerm_service_plan" "this" {
   })
 }
 
-# Windows Function App
-resource "azurerm_linux_function_app" "this" {
-  name                       = "${module.naming_fa.name}-${var.app_name}"
+# Logic App Standard
+resource "azurerm_logic_app_standard" "this" {
+  name                       = "${module.naming_la.name}-${var.app_name}"
   location                   = var.location
   resource_group_name        = var.resource_group_name
-  service_plan_id            = azurerm_service_plan.this.id
+  app_service_plan_id        = azurerm_service_plan.this.id
   storage_account_name       = var.storage_account_name
   storage_account_access_key = var.storage_account_access_key
+  storage_account_share_name = var.storage_account_share_name
   
   # Enable HTTPS only (secure by default)
   https_only = true
@@ -75,68 +75,61 @@ resource "azurerm_linux_function_app" "this" {
       # Application Insights
       "APPLICATIONINSIGHTS_CONNECTION_STRING" = var.app_insights_connection_string
       "ApplicationInsightsAgent_EXTENSION_VERSION" = "~3"
+      "APPINSIGHTS_INSTRUMENTATIONKEY" = var.app_insights_instrumentation_key
       
       # Managed Identity
       "AZURE_CLIENT_ID" = var.user_assigned_identity_client_id
       
-      # Function App settings
-      "FUNCTIONS_WORKER_RUNTIME" = var.functions_worker_runtime
-      "FUNCTIONS_EXTENSION_VERSION" = "~4"
-      "WEBSITE_RUN_FROM_PACKAGE" = "1"
-      "WEBSITE_ENABLE_SYNC_UPDATE_SITE" = "true"
+      # Logic App settings
+      "FUNCTIONS_WORKER_RUNTIME" = "node"
+      "WEBSITE_NODE_DEFAULT_VERSION" = "~18"
+      "WEBSITE_CONTENTOVERVNET" = "1"
       
       # Key Vault reference for secrets (use managed identity)
       "KeyVaultUri" = var.key_vault_uri
+      
+      # Workflows Runtime Settings
+
     },
     var.additional_app_settings
   )
 
   site_config {
-    # Minimum TLS version
-    minimum_tls_version = "1.2"
-    
-    # Always on (if supported by SKU)
-    always_on = var.always_on
+    # Always on (required for Logic App Standard)
+    always_on = true
     
     # FTPs state - disable FTP, allow FTPS only
     ftps_state = "Disabled"
     
-    # HTTP2 enabled
-    http2_enabled = true
+    # Runtime scale monitoring
+    runtime_scale_monitoring_enabled = true
     
-    # Use 32-bit worker process (set to false for production workloads)
-    use_32_bit_worker = false
-    
-    # CORS settings (only enabled if origins are specified)
-    dynamic "cors" {
-      for_each = length(var.cors_allowed_origins) > 0 ? [1] : []
-      content {
-        allowed_origins     = var.cors_allowed_origins
-        support_credentials = false
-      }
-    }
-    
-    # Runtime version - conditionally set based on worker runtime
-    application_stack {
-      dotnet_version  = var.functions_worker_runtime == "dotnet" ? var.dotnet_version : null
-      node_version    = var.functions_worker_runtime == "node" ? var.node_version : null
-      python_version  = var.functions_worker_runtime == "python" ? var.python_version : null
-      java_version    = var.functions_worker_runtime == "java" ? var.java_version : null
-    }
+    # Extension bundle configuration (for built-in connectors)
+    # dynamic "app_service_logs" {
+    #   for_each = var.enable_diagnostics ? [1] : []
+    #   content {
+    #     disk_quota_mb         = 35
+    #     retention_period_days = 7
+    #   }
+    # }
   }
+
+  # Use extension bundle if enabled - configured via app settings
+  # The bundle configuration is handled through FUNCTIONS_EXTENSION_VERSION
+  # and additional workflow-specific settings in app_settings
 
   tags = var.tags
   
   lifecycle {
     ignore_changes = [
-      # Ignore changes to app settings that might be set by Azure DevOps
+      # Ignore changes to app settings that might be set by deployment pipelines
       app_settings["WEBSITE_RUN_FROM_PACKAGE"],
     ]
   }
 }
 
-# Private Endpoint for Function App (optional, recommended for production)
-resource "azurerm_private_endpoint" "function_app" {
+# Private Endpoint for Logic App (optional, recommended for production)
+resource "azurerm_private_endpoint" "logic_app" {
   count               = var.enable_private_endpoint ? 1 : 0
   name                = "${module.naming_pe.name}-${var.app_name}"
   location            = var.location
@@ -144,8 +137,8 @@ resource "azurerm_private_endpoint" "function_app" {
   subnet_id           = var.private_endpoint_subnet_id
 
   private_service_connection {
-    name                           = "psc-${module.naming_fa.name}"
-    private_connection_resource_id = azurerm_linux_function_app.this.id
+    name                           = "psc-${module.naming_la.name}-${var.app_name}"
+    private_connection_resource_id = azurerm_logic_app_standard.this.id
     is_manual_connection           = false
     subresource_names              = ["sites"]
   }
@@ -154,18 +147,19 @@ resource "azurerm_private_endpoint" "function_app" {
 }
 
 # Diagnostic Settings (if enabled)
-resource "azurerm_monitor_diagnostic_setting" "function_app" {
+resource "azurerm_monitor_diagnostic_setting" "logic_app" {
   count                      = var.enable_diagnostics ? 1 : 0
-  name                       = "diag-${module.naming_fa.name}"
-  target_resource_id         = azurerm_linux_function_app.this.id
+  name                       = "diag-${module.naming_la.name}"
+  target_resource_id         = azurerm_logic_app_standard.this.id
   log_analytics_workspace_id = var.log_analytics_workspace_id
 
   enabled_log {
-    category = "FunctionAppLogs"
+    category = "WorkflowRuntime"
   }
 
   metric {
     category = "AllMetrics"
+    enabled  = true
   }
 }
 

@@ -1,0 +1,34 @@
+trigger: none  # Manual trigger only
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  subscriptionId: 'b2c30590-db17-4740-b3c6-6853aab1d9a2'  # From Step 1
+  resourceGroupName: 'rg-evotaskers-state-pmoss'  # From backend.tf
+  storageAccountName: 'stevotaskersstatepoc'  # From backend.tf
+  serviceConnectionName: 'EVO-Taskers-Sandbox'  # e.g., AzureRM-Connection
+
+steps:
+- task: AzureCLI@2
+  displayName: 'Bootstrap RBAC Assignment'
+  inputs:
+    azureSubscription: '$(serviceConnectionName)'
+    scriptType: 'bash'
+    scriptLocation: 'inlineScript'
+    inlineScript: |
+      # Get the current authenticated principal's app ID
+      appId=$(az account show --query user.name -o tsv)
+      echo "Authenticated as app ID: $appId"
+
+      # Define the scope
+      scope="/subscriptions/$(subscriptionId)/resourceGroups/$(resourceGroupName)/providers/Microsoft.Storage/storageAccounts/$(storageAccountName)"
+
+      # Assign the role (idempotent; won't error if already assigned)
+      az role assignment create \
+        --assignee $appId \
+        --role "Storage Blob Data Contributor" \
+        --scope $scope
+
+      # Verify
+      az role assignment list --scope $scope --assignee $appId

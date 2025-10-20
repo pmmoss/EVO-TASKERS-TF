@@ -1,0 +1,154 @@
+# Template: Security Scanning
+# Scans Terraform code for security issues and misconfigurations
+# Uses: Checkov, tfsec, and TFLint (all free/open source)
+
+parameters:
+  - name: workingDirectory
+    type: string
+  - name: failOnSecurityIssues
+    type: boolean
+    default: false
+  - name: checkovSkipChecks
+    type: string
+    default: ''
+    displayName: 'Checkov checks to skip (comma-separated)'
+
+steps:
+  - task: Bash@3
+    displayName: 'Install Security Tools'
+    inputs:
+      targetType: 'inline'
+      script: |
+        echo "Installing security scanning tools..."
+        
+        # Install Checkov (comprehensive IaC security scanner)
+        pip3 install checkov
+        
+        # Install tfsec (Terraform-specific security scanner)
+        curl -s https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
+        
+        # Install TFLint (Terraform linter)
+        curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
+        
+        echo "✓ Security tools installed successfully"
+
+  - task: Bash@3
+    displayName: 'Run Checkov Security Scan'
+    continueOnError: ${{ not(parameters.failOnSecurityIssues) }}
+    inputs:
+      targetType: 'inline'
+      workingDirectory: '$(System.DefaultWorkingDirectory)/${{ parameters.workingDirectory }}'
+      script: |
+        echo "=== Running Checkov Security Scan ==="
+        
+        SKIP_ARGS=""
+        if [ -n "${{ parameters.checkovSkipChecks }}" ]; then
+          SKIP_ARGS="--skip-check ${{ parameters.checkovSkipChecks }}"
+        fi
+        
+        # Run Checkov and capture exit code
+        set +e
+        checkov -d . \
+          --framework terraform \
+          --output cli \
+          --output junitxml \
+          --output-file-path $(Build.ArtifactStagingDirectory) \
+          $SKIP_ARGS
+        EXIT_CODE=$?
+        set -e
+        
+        # Handle results based on failOnSecurityIssues parameter
+        if [ $EXIT_CODE -ne 0 ]; then
+          if [ "${{ parameters.failOnSecurityIssues }}" == "True" ]; then
+            echo "##[error]Checkov found security issues - failing pipeline"
+            exit $EXIT_CODE
+          else
+            echo "##[warning]Checkov found security issues - continuing due to failOnSecurityIssues=false"
+            exit 0
+          fi
+        fi
+        
+        echo "✓ Checkov scan completed successfully"
+
+  - task: Bash@3
+    displayName: 'Run tfsec Security Scan'
+    continueOnError: ${{ not(parameters.failOnSecurityIssues) }}
+    inputs:
+      targetType: 'inline'
+      workingDirectory: '$(System.DefaultWorkingDirectory)/${{ parameters.workingDirectory }}'
+      script: |
+        echo "=== Running tfsec Security Scan ==="
+        
+        # Run tfsec and capture exit code
+        set +e
+        tfsec . \
+          --format lovely \
+          --format junit \
+          --out $(Build.ArtifactStagingDirectory)/tfsec-results.xml \
+          --soft-fail
+        EXIT_CODE=$?
+        set -e
+        
+        # Handle results based on failOnSecurityIssues parameter
+        if [ $EXIT_CODE -ne 0 ]; then
+          if [ "${{ parameters.failOnSecurityIssues }}" == "True" ]; then
+            echo "##[error]tfsec found security issues - failing pipeline"
+            exit $EXIT_CODE
+          else
+            echo "##[warning]tfsec found security issues - continuing due to failOnSecurityIssues=false"
+            exit 0
+          fi
+        fi
+        
+        echo "✓ tfsec scan completed successfully"
+
+  - task: Bash@3
+    displayName: 'Run TFLint'
+    continueOnError: true
+    inputs:
+      targetType: 'inline'
+      workingDirectory: '$(System.DefaultWorkingDirectory)/${{ parameters.workingDirectory }}'
+      script: |
+        echo "=== Running TFLint ==="
+        
+        # Initialize TFLint
+        set +e
+        tflint --init
+        
+        # Run TFLint
+        tflint --format compact
+        EXIT_CODE=$?
+        set -e
+        
+        # TFLint always continues (informational only)
+        if [ $EXIT_CODE -ne 0 ]; then
+          echo "##[warning]TFLint found issues - review recommendations above"
+        fi
+        
+        echo "✓ TFLint scan completed"
+        exit 0
+
+  - task: PublishTestResults@2
+    displayName: 'Publish Security Scan Results'
+    condition: always()
+    inputs:
+      testResultsFormat: 'JUnit'
+      testResultsFiles: '$(Build.ArtifactStagingDirectory)/*results*.xml'
+      testRunTitle: 'Security Scan Results'
+      mergeTestResults: true
+      failTaskOnFailedTests: ${{ parameters.failOnSecurityIssues }}
+
+  - task: Bash@3
+    displayName: 'Security Scan Summary'
+    condition: always()
+    inputs:
+      targetType: 'inline'
+      script: |
+        echo "=== Security Scan Summary ==="
+        echo "Checkov: Infrastructure security and compliance scanning"
+        echo "tfsec: Terraform-specific security checks"
+        echo "TFLint: Terraform best practices and errors"
+        echo ""
+        echo "Review the test results above for detailed findings."
+        echo "=========================="
+

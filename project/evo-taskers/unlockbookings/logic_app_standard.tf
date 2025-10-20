@@ -1,11 +1,11 @@
-# Function App for UnlockBookings background jobs (optional)
-# Uncomment this module if you need a Function App for background processing
+# Logic App Standard for UnlockBookings workflows
+# Deploys a Logic App Standard with connected identity, storage, and app settings.
 
-module "function_app" {
-  source = "../../../modules/windows_function_app"
+module "logic_app_standard" {
+  source = "../../../modules/logic_app_standard"
   
   # Application identifier
-  app_name = var.app_name
+  app_name = "${var.app_name}-workflow"
   
   # Project configuration from common infrastructure
   project        = local.project
@@ -13,16 +13,16 @@ module "function_app" {
   location       = local.location
   location_short = local.location_short
   
-  # Resource group
+  # Resource group from common infrastructure
   resource_group_name = data.terraform_remote_state.common.outputs.resource_group_name
   
-  # SKU configuration (Y1 = Consumption, EP1 = Premium, B1 = Basic/Dedicated)
-  sku_name  = var.function_app_sku
-  always_on = var.function_app_always_on
+  # SKU configuration (WS1, WS2, WS3 for Workflow Standard)
+  sku_name = var.logic_app_sku
   
-  # Storage account (required for Function Apps)
+  # Storage account (required for Logic App Standard)
   storage_account_name       = data.terraform_remote_state.common.outputs.storage_account_name
   storage_account_access_key = data.terraform_remote_state.common.outputs.storage_account_primary_access_key
+  storage_account_share_name = var.logic_app_storage_share_name
   
   # Managed Identity from common infrastructure
   user_assigned_identity_id        = data.terraform_remote_state.common.outputs.workload_identity_id
@@ -45,15 +45,16 @@ module "function_app" {
   # Key Vault
   key_vault_uri = data.terraform_remote_state.common.outputs.key_vault_uri
   
-  # Function runtime configuration
-  functions_worker_runtime = var.functions_worker_runtime
-  dotnet_version          = var.dotnet_version
+  # Extension bundle configuration
+  use_extension_bundle = var.use_extension_bundle
+  bundle_version      = var.bundle_version
   
-  # Additional app settings
+  # Additional app settings for workflows
   additional_app_settings = merge(
-    var.additional_function_app_settings,
+    var.additional_logic_app_settings,
     {
-      "ApplicationName" = "UnlockBookings"
+      "ApplicationName" = "UnlockBookings-Workflow"
+      "Workflow.Environment" = var.environment
     }
   )
   

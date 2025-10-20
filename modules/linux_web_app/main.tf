@@ -26,6 +26,14 @@ module "naming_app" {
   location_short = var.location_short
 }
 
+module "naming_pe" {
+  source         = "../naming"
+  resource_type  = "pe"
+  project        = var.project
+  environment    = var.environment
+  location       = var.location
+  location_short = var.location_short
+}
 # App Service Plan for Linux (separate from Function App plan)
 resource "azurerm_service_plan" "this" {
   count               = var.create_service_plan ? 1 : 0
@@ -520,13 +528,13 @@ resource "azurerm_app_service_certificate_binding" "this" {
 # Private Endpoint for App Service (optional, recommended for production)
 resource "azurerm_private_endpoint" "app_service" {
   count               = var.enable_private_endpoint ? 1 : 0
-  name                = "pe-${module.naming_app.name}"
+  name                = "${module.naming_pe.name}-${var.app_name}"
   location            = var.location
   resource_group_name = var.resource_group_name
   subnet_id           = var.private_endpoint_subnet_id
 
   private_service_connection {
-    name                           = "psc-${module.naming_app.name}"
+    name                           = "psc-${module.naming_app.name}-${var.app_name}"
     private_connection_resource_id = azurerm_linux_web_app.this.id
     is_manual_connection           = false
     subresource_names              = ["sites"]

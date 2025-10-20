@@ -1,5 +1,8 @@
-# AutomatedDataFeed QA Environment Configuration
+# SendGrid Function QA Environment Configuration
 # Apply with: terraform apply -var-file="qa.tfvars"
+
+# Environment identifier (required)
+environment = "qa"
 app_name = "sendgridfunction"
 ######## Web App Service Configuration ########
 app_service_sku       = "P1v3"   # Standard tier for QA

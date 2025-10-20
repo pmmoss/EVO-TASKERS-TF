@@ -16,6 +16,6 @@ output "app_insights_connection_string" {
   sensitive = true
 }
 
-output "private_endpoint_id" {
-  value = var.enable_private_endpoint ? azurerm_private_endpoint.app_insights[0].id : null
-}
+# output "private_endpoint_id" {
+#   value = var.enable_private_endpoint ? azurerm_private_endpoint.app_insights[0].id : null
+# }
