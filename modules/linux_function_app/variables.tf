@@ -28,9 +28,21 @@ variable "resource_group_name" {
   description = "Name of the resource group"
 }
 
+variable "create_service_plan" {
+  type        = bool
+  description = "Whether to create a new App Service Plan or use an existing one"
+  default     = true
+}
+
+variable "existing_service_plan_id" {
+  type        = string
+  description = "ID of existing App Service Plan (required if create_service_plan is false)"
+  default     = null
+}
+
 variable "sku_name" {
   type        = string
-  description = "SKU name for the App Service Plan (e.g., Y1 for Consumption, EP1 for Premium, B1 for Basic)"
+  description = "SKU name for the App Service Plan (e.g., Y1 for Consumption, EP1 for Premium, B1 for Basic). Only used if create_service_plan is true"
   default     = "Y1"
 }
 

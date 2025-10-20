@@ -16,8 +16,9 @@ module "logic_app_standard" {
   # Resource group from common infrastructure
   resource_group_name = data.terraform_remote_state.common.outputs.resource_group_name
   
-  # SKU configuration (WS1, WS2, WS3 for Workflow Standard)
-  sku_name = var.logic_app_sku
+  # App Service Plan - Use shared Logic App plan from shared services
+  create_service_plan      = false
+  existing_service_plan_id = data.terraform_remote_state.shared.outputs.logic_app_plan_id
   
   # Storage account (required for Logic App Standard)
   storage_account_name       = data.terraform_remote_state.common.outputs.storage_account_name

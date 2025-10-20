@@ -19,13 +19,13 @@ output "logic_app_identity_principal_id" {
 }
 
 output "service_plan_id" {
-  value       = azurerm_service_plan.this.id
-  description = "The ID of the App Service Plan"
+  value       = var.create_service_plan ? azurerm_service_plan.this[0].id : var.existing_service_plan_id
+  description = "The ID of the App Service Plan (created or existing)"
 }
 
 output "service_plan_name" {
-  value       = azurerm_service_plan.this.name
-  description = "The name of the App Service Plan"
+  value       = var.create_service_plan ? azurerm_service_plan.this[0].name : null
+  description = "The name of the App Service Plan (only if created by this module)"
 }
 
 output "private_endpoint_id" {

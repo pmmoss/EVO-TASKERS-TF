@@ -1,79 +1,77 @@
 # UnlockBookings Dev Environment Configuration
 # This file contains environment-specific values for the UnlockBookings application
 
+# ==============================================================================
+# BASIC CONFIGURATION
+# ==============================================================================
+
 # Environment identifier (required)
 environment = "dev"
-app_name = "unlockbookings"
-######## Web App Service Configuration ########
-# App Service Configuration
-app_service_sku       = "P0v3"   # Basic tier for dev, use S1+ for production
-app_service_always_on = false    # Set to true for production
+app_name    = "unlockbookings"
 
-# Runtime Configuration
-runtime_stack  = "dotnet"
-dotnet_version = "v8.0"
-function_app_sku         = "P0v3"  # Basic plan for dev, EP1 for production
-function_app_always_on   = false   # Can enable for Basic plan
-functions_worker_runtime = "dotnet"
+# ==============================================================================
+# NETWORK CONFIGURATION
+# ==============================================================================
 
-# Health Check
-health_check_path = "/health"
+# Private endpoint for inbound traffic (recommended for production)
+enable_private_endpoint = false  # Set to true for production
 
-# CORS Configuration (add allowed origins as needed)
-cors_allowed_origins = [
-  # Example: "https://yourdomain.com"
-]
+# ==============================================================================
+# LOGIC APP STANDARD CONFIGURATION
+# ==============================================================================
 
-# Additional App Settings
-additional_app_settings = {
-  # Add application-specific settings here
-  # Example:
-  # "MyCustomSetting" = "value"
-}
+# NOTE: The Logic App uses the shared App Service Plan from the 'shared' module.
+# The plan SKU (WS1) is configured in shared/dev.tfvars, not here.
 
+# Storage share name for Logic App content (must be unique per Logic App)
+logic_app_storage_share_name = "unlockbookings-workflow-content"
 
-
-additional_function_app_settings = {
-  # Add function-specific settings here
-  name = "UnlockBookings-Functions"
-  
-  # Storage Configuration
-  # The following settings configure how the Function App uses storage
-  # AzureWebJobsStorage is automatically configured by the module using the common storage account
-  
-  # Storage connection settings (using managed identity when possible)
-  #"AzureWebJobsStorage__accountName" =  Set this to use managed identity for storage
-  
-  # Content share settings (for deployment packages)
-  #"WEBSITE_CONTENTAZUREFILECONNECTIONSTRING" - Auto-configured by module
-  #"WEBSITE_CONTENTSHARE" - Auto-configured by Azure
-  
-  # Blob storage settings (if your functions use blob triggers/bindings)
-  #"StorageAccountName" = m""odule.common.storage_account_name"" # Reference to common storage account
-  #"StorageAccountKey" = "managedidentity" # Use Key Vault reference or managed identity instead
-  
-  # Example custom storage connection (if you need additional storage accounts)
-  # "CustomStorage__serviceUri" = "https://<storage-account>.blob.core.windows.net"
-  #"CustomStorage__credential" = "managedidentity"
-}
-
-# Network Configuration
-enable_private_endpoint = true # Set to true for production to disable public access
-
-# Logic App Standard Configuration
-logic_app_sku = "WS1" # WS1, WS2, WS3 for Workflow Standard
-logic_app_storage_share_name = "unlockbookings-workflow-content1"
+# Extension bundle configuration (enables built-in connectors)
 use_extension_bundle = true
-bundle_version = "[1.*, 2.0.0)"
+bundle_version       = "[1.*, 2.0.0)"
 
-# Additional Logic App Settings
+# ==============================================================================
+# LOGIC APP SETTINGS
+# ==============================================================================
+
+# Additional Logic App application settings
 additional_logic_app_settings = {
-  # Add workflow-specific settings here
+  # Workflow identification
   "WorkflowName" = "UnlockBookingsWorkflow"
+  "WorkflowType" = "Booking Management"
   
   # Workflow runtime settings
   "Workflows.Connection.AuthenticationAudience" = "https://management.azure.com/"
   
-  # Example: Configure connector settings
+  # Example: Configure API connector settings (use Key Vault for secrets)
   # "azureblob-connectionKey" = "@Microsoft.KeyVault(SecretUri=https://your-keyvault.vault.azure.net/secrets/blob-connection-key/)"
+  
+  # Example: Custom workflow settings
+  # "BookingTimeout" = "300"
+  # "MaxRetries" = "3"
 }
+
+# ==============================================================================
+# UNUSED VARIABLES (kept for reference, remove if not needed)
+# ==============================================================================
+
+# The following variables are defined in variables.tf but not used by unlockbookings
+# since it only deploys a Logic App (not Web App or Function App):
+
+# Web App variables (not used):
+# - app_service_sku
+# - app_service_always_on  
+# - runtime_stack
+# - dotnet_version
+# - health_check_path
+# - cors_allowed_origins
+# - additional_app_settings
+
+# Function App variables (not used):
+# - function_app_sku (plan SKU now in shared module)
+# - function_app_always_on
+# - functions_worker_runtime
+# - additional_function_app_settings
+
+# Logic App Plan variable (not used):
+# - logic_app_sku (plan SKU now defined in shared/dev.tfvars)

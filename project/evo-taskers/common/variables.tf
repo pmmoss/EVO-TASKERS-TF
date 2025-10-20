@@ -53,33 +53,42 @@ variable "enable_bastion" {
   default = true
 }
 
-# variable "app_service_os_type" {
-#   type = string
-#   description = "App Service OS type (Linux or Windows)"
-#   default = "Linux"
-#   validation {
-#     condition = contains(["Linux", "Windows"], var.app_service_os_type)
-#     error_message = "App Service OS type must be either Linux or Windows."
-#   }
-# }
+variable "logic_app_service_plan_name" {
+  type = string
+  description = "Name of the Logic App Service Plan"
+  default = "logicapps"
+}
 
-# variable "app_service_sku" {
-#   type = string
-#   description = "App Service Plan SKU"
-#   default = "B1"
-# }
+variable "function_app_service_plan_name" {
+  type = string
+  description = "Name of the Function App Service Plan"
+  default = "functions"
+}
 
-# variable "app_service_always_on" {
-#   type = bool
-#   description = "Enable always on for App Service"
-#   default = false
-# }
+variable "logic_app_service_plan_sku" {
+  type = string
+  description = "SKU of the Logic App Service Plan"
+  default = "WS1"
+}
 
-# variable "app_service_settings" {
-#   type = map(string)
-#   description = "App Service application settings"
-#   default = {}
-# }
+variable "function_app_service_plan_sku" {
+  type = string
+  description = "SKU of the Function App Service Plan"
+  default = "Y1"
+}
+
+variable "logic_app_service_plan_existing_service_plan_id" {
+  type = string
+  description = "Existing Service Plan ID of the Logic App Service Plan"
+  default = null
+}
+
+variable "function_app_service_plan_existing_service_plan_id" {
+  type = string
+  description = "Existing Service Plan ID of the Function App Service Plan"
+  default = null
+}
+
 
 variable "tags" {
   type = map(string)

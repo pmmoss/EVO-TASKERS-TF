@@ -34,8 +34,9 @@ module "naming_pe" {
   location       = var.location
   location_short = var.location_short
 }
-# App Service Plan for Linux Function Apps (separate from Web App plan)
+# App Service Plan for Windows Function Apps (optional - can use external plan)
 resource "azurerm_service_plan" "this" {
+  count               = var.create_service_plan ? 1 : 0
   name                = "${module.naming_asp.name}-${var.app_name}"
   location            = var.location
   resource_group_name = var.resource_group_name
@@ -52,7 +53,7 @@ resource "azurerm_windows_function_app" "this" {
   name                       = "${module.naming_fa.name}-${var.app_name}"
   location                   = var.location
   resource_group_name        = var.resource_group_name
-  service_plan_id            = azurerm_service_plan.this.id
+  service_plan_id            = var.create_service_plan ? azurerm_service_plan.this[0].id : var.existing_service_plan_id
   storage_account_name       = var.storage_account_name
   storage_account_access_key = var.storage_account_access_key
   
