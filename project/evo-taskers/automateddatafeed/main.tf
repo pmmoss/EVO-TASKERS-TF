@@ -29,6 +29,8 @@ locals {
   environment    = data.terraform_remote_state.common.outputs.environment
   location       = data.terraform_remote_state.common.outputs.location
   location_short = data.terraform_remote_state.common.outputs.location_short
+  logic_app_plan_id = data.terraform_remote_state.shared.outputs.logic_app_plan_id
+  windows_function_plan_id = data.terraform_remote_state.shared.outputs.windows_function_plan_id  
   tags = merge(
     data.terraform_remote_state.common.outputs.tags,
     {
