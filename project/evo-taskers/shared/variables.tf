@@ -1,18 +1,3 @@
-variable "subscription_id" {
-  type        = string
-  description = "Azure subscription ID"
-}
-
-variable "environment" {
-  type        = string
-  description = "Environment name (dev, qa, prod)"
-  
-  validation {
-    condition     = contains(["dev", "qa", "prod"], var.environment)
-    error_message = "Environment must be dev, qa, or prod"
-  }
-}
-
 # ==============================================================================
 # APP SERVICE PLAN VARIABLES
 # ==============================================================================
