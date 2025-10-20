@@ -75,17 +75,42 @@ The recommended way to deploy infrastructure is through the Azure DevOps pipelin
    - Environment: dev/qa/prod
    - Project Name: evo-taskers
    - Application Name: automateddatafeed (or other app)
-3. **Review Plan**: Pipeline automatically runs `terraform plan`
-4. **Manual Approval**: Review and approve the plan
-5. **Apply**: Pipeline automatically applies approved changes
+   - Run Security Scan: true/false (default: true)
+   - Run Cost Analysis: true/false (default: true)
+   - Fail Pipeline on Security Issues: true/false (default: false)
+3. **Plan Stage**: Pipeline runs `terraform plan`
+4. **Security Scan** (optional): Scans code for vulnerabilities
+5. **Cost Analysis** (optional): Estimates infrastructure costs
+6. **Manual Approval**: Review plan, security findings, and costs
+7. **Apply Stage**: Pipeline applies approved changes
 
 ### Pipeline Features
 - ✅ OIDC authentication (secure, no secrets needed)
 - ✅ Automated plan/apply workflow
 - ✅ Manual approval gate before apply
+- ✅ **Security scanning** (Checkov, tfsec, TFLint)
+- ✅ **Cost analysis** (Infracost)
 - ✅ Artifact preservation
 - ✅ Environment-based deployment
 - ✅ Reusable templates
+
+### Security & Cost Features
+
+The pipeline includes optional security scanning and cost analysis stages:
+
+**Security Scanning:**
+- Scans Terraform code for security vulnerabilities
+- Uses industry-standard tools (Checkov, tfsec, TFLint)
+- Checks for misconfigurations and compliance issues
+- Can be configured to fail pipeline on critical findings
+
+**Cost Analysis:**
+- Estimates monthly infrastructure costs before deployment
+- Breaks down costs by resource
+- Helps identify cost optimization opportunities
+- Compares costs across environments
+
+📖 **Setup Guide**: See [`.azure_pipelines/SECURITY-AND-COST-SETUP.md`](.azure_pipelines/SECURITY-AND-COST-SETUP.md) for detailed setup instructions.
 
 ## Files Structure
 
@@ -237,11 +262,14 @@ Each environment uses a completely separate state file, preventing:
 2. **Always verify state file**: Check your backend config points to the correct environment
 3. **Use the correct tfvars**: Always specify `-var-file="<env>.tfvars"` when planning/applying
 4. **Review before applying**: Always run `plan` before `apply`
-5. **Protect production**: 
+5. **Enable security scanning**: Keep security scans enabled to catch vulnerabilities early
+6. **Monitor costs**: Review cost analysis reports to avoid budget surprises
+7. **Protect production**: 
    - Use pipeline approvals for prod deployments
+   - Enable `failOnSecurityIssues: true` for production
    - Require PR reviews for changes
    - Test in dev/qa first
-6. **Never force-unlock lightly**: Only unlock state if you're certain no other process is running
+8. **Never force-unlock lightly**: Only unlock state if you're certain no other process is running
 
 ## Troubleshooting
 

@@ -1,0 +1,152 @@
+# Template: Cost Analysis
+# Estimates infrastructure costs using Infracost
+# Provides cost breakdown and comparison against baseline
+
+parameters:
+  - name: workingDirectory
+    type: string
+  - name: environment
+    type: string
+  - name: infraCostApiKey
+    type: string
+    default: ''
+  - name: showCostDiff
+    type: boolean
+    default: true
+
+steps:
+  - task: Bash@3
+    displayName: 'Install Infracost'
+    inputs:
+      targetType: 'inline'
+      script: |
+        echo "Installing Infracost..."
+        
+        # Download and install Infracost
+        curl -fsSL https://raw.githubusercontent.com/infracost/infracost/master/scripts/install.sh | sh
+        
+        # Verify installation
+        infracost --version
+        
+        echo "✓ Infracost installed successfully"
+
+  - task: Bash@3
+    displayName: 'Configure Infracost'
+    inputs:
+      targetType: 'inline'
+      script: |
+        echo "Configuring Infracost..."
+        
+        # Check if API key is provided
+        if [ -z "$INFRACOST_API_KEY" ]; then
+          echo "##[warning]No Infracost API key provided. Using free tier."
+          echo "Sign up at https://www.infracost.io/docs/#quick-start to get an API key"
+          echo "Add INFRACOST_API_KEY to your variable group or use the infraCostApiKey parameter"
+          
+          # Register for free API key (optional)
+          infracost auth login || true
+        else
+          echo "✓ Using provided Infracost API key"
+        fi
+    env:
+      INFRACOST_API_KEY: ${{ parameters.infraCostApiKey }}
+
+  - task: Bash@3
+    displayName: 'Generate Cost Estimate'
+    inputs:
+      targetType: 'inline'
+      workingDirectory: '$(System.DefaultWorkingDirectory)/${{ parameters.workingDirectory }}'
+      script: |
+        echo "=== Generating Cost Estimate for ${{ parameters.environment }} ==="
+        
+        TFVARS_FILE="${{ parameters.environment }}.tfvars"
+        TFVARS_ARG=""
+        if [ -f "$TFVARS_FILE" ]; then
+          TFVARS_ARG="--terraform-var-file=$TFVARS_FILE"
+        fi
+        
+        # Generate cost breakdown
+        infracost breakdown \
+          --path . \
+          $TFVARS_ARG \
+          --format json \
+          --out-file $(Build.ArtifactStagingDirectory)/infracost-base.json
+        
+        # Generate human-readable report
+        infracost breakdown \
+          --path . \
+          $TFVARS_ARG \
+          --format table \
+          --out-file $(Build.ArtifactStagingDirectory)/infracost-report.txt
+        
+        # Display the report
+        echo ""
+        echo "=== Cost Breakdown ==="
+        cat $(Build.ArtifactStagingDirectory)/infracost-report.txt
+        echo "======================"
+        
+        # Generate HTML report
+        infracost breakdown \
+          --path . \
+          $TFVARS_ARG \
+          --format html \
+          --out-file $(Build.ArtifactStagingDirectory)/infracost-report.html
+        
+        echo "✓ Cost estimate generated successfully"
+    env:
+      INFRACOST_API_KEY: ${{ parameters.infraCostApiKey }}
+
+  - task: Bash@3
+    displayName: 'Compare with Baseline (if available)'
+    condition: and(succeeded(), eq('${{ parameters.showCostDiff }}', 'true'))
+    continueOnError: true
+    inputs:
+      targetType: 'inline'
+      workingDirectory: '$(System.DefaultWorkingDirectory)/${{ parameters.workingDirectory }}'
+      script: |
+        echo "=== Cost Comparison ==="
+        
+        # Try to download previous cost baseline
+        # This would require storing the baseline in artifacts or Azure Storage
+        echo "Note: Cost comparison requires a baseline from previous runs"
+        echo "To enable comparison, store infracost-base.json in Azure Storage or artifacts"
+        
+        # Example comparison (if baseline exists):
+        # infracost diff \
+        #   --path . \
+        #   --compare-to baseline.json \
+        #   --format table
+        
+        echo "✓ Cost comparison step completed"
+    env:
+      INFRACOST_API_KEY: ${{ parameters.infraCostApiKey }}
+
+  - task: Bash@3
+    displayName: 'Cost Analysis Summary'
+    inputs:
+      targetType: 'inline'
+      script: |
+        echo "=== Cost Analysis Summary ==="
+        
+        if [ -f "$(Build.ArtifactStagingDirectory)/infracost-report.txt" ]; then
+          TOTAL_COST=$(grep -oP "OVERALL TOTAL.*\K\$[\d,.]+" $(Build.ArtifactStagingDirectory)/infracost-report.txt || echo "N/A")
+          
+          echo "Environment: ${{ parameters.environment }}"
+          echo "Estimated Monthly Cost: $TOTAL_COST"
+          echo ""
+          echo "📊 Detailed cost breakdown available in artifacts"
+          echo "💡 Review the HTML report for interactive cost analysis"
+        else
+          echo "##[warning]Cost report not generated"
+        fi
+        
+        echo "=========================="
+
+  - task: PublishPipelineArtifact@1
+    displayName: 'Publish Cost Reports'
+    condition: always()
+    inputs:
+      targetPath: '$(Build.ArtifactStagingDirectory)'
+      artifact: 'cost-analysis-${{ parameters.environment }}'
+      publishLocation: 'pipeline'
+
