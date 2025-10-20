@@ -1,4 +1,7 @@
 # Azure DevOps Pipeline for Terraform
+# Uses: Workload Identity Federation (OIDC) for authentication
+# NO GATEKEEPER
+# POC ONLY - DO NOT USE IN PRODUCTION
 # Supports: project/<PROJECT>/<APP> structure with dev/qa/prod environments
 
 parameters:
@@ -38,23 +41,23 @@ variables:
   - name: serviceConnection
     value: 'EVO-Taskers-Sandbox'
 
-trigger:
-  branches:
-    include:
-      - main
-  paths:
-    include:
-      - 'project/**'
-      - 'modules/**'
+# trigger:
+#   branches:
+#     include:
+#       - main
+#   paths:
+#     include:
+#       - 'project/**'
+#       - 'modules/**'
 
-pr:
-  branches:
-    include:
-      - main
-  paths:
-    include:
-      - 'project/**'
-      - 'modules/**'
+# pr:
+#   branches:
+#     include:
+#       - main
+#   paths:
+#     include:
+#       - 'project/**'
+#       - 'modules/**'
 
 stages:
   - stage: Plan
@@ -74,139 +77,45 @@ stages:
             inputs:
               terraformVersion: '$(terraformVersion)'
 
-          - task: AzureCLI@2
-            displayName: 'Setup Authentication'
-            name: auth
-            inputs:
-              azureSubscription: '$(serviceConnection)'
-              scriptType: 'bash'
-              scriptLocation: 'inlineScript'
-              addSpnToEnvironment: true
-              inlineScript: |
-                echo "=== DEBUG: Authentication Variables ==="
-                echo "servicePrincipalId: ${servicePrincipalId:-(empty)}"
-                echo "tenantId: ${tenantId:-(empty)}"
-                echo "idToken present: $([ -n "$idToken" ] && echo 'YES' || echo 'NO')"
-                echo "idToken length: ${#idToken}"
-                echo "servicePrincipalKey present: $([ -n "$servicePrincipalKey" ] && echo 'YES' || echo 'NO')"
-                echo "servicePrincipalKey length: ${#servicePrincipalKey}"
-                echo "======================================"
-                
-                SUBSCRIPTION_ID=$(az account show --query id -o tsv)
-                echo "Subscription ID: $SUBSCRIPTION_ID"
-                
-                echo "##vso[task.setvariable variable=ARM_CLIENT_ID;isOutput=true]$servicePrincipalId"
-                echo "##vso[task.setvariable variable=ARM_TENANT_ID;isOutput=true]$tenantId"
-                echo "##vso[task.setvariable variable=ARM_SUBSCRIPTION_ID;isOutput=true]$SUBSCRIPTION_ID"
-                
-                if [ -n "$idToken" ]; then
-                  echo "✓ Using OIDC authentication"
-                  echo "##vso[task.setvariable variable=ARM_USE_OIDC;isOutput=true]true"
-                  echo "##vso[task.setvariable variable=ARM_OIDC_TOKEN;isOutput=true]$idToken"
-                  echo "##vso[task.setvariable variable=ARM_CLIENT_SECRET;isOutput=true]"
-                else
-                  echo "✗ Using Service Principal authentication (OIDC token not available)"
-                  echo "##[warning]OIDC is not configured - falling back to client secret"
-                  echo "##vso[task.setvariable variable=ARM_USE_OIDC;isOutput=true]false"
-                  echo "##vso[task.setvariable variable=ARM_OIDC_TOKEN;isOutput=true]"
-                  echo "##vso[task.setvariable variable=ARM_CLIENT_SECRET;isOutput=true]$servicePrincipalKey"
-                fi
+          - template: templates/setup-auth.yml
+            parameters:
+              serviceConnection: '$(serviceConnection)'
 
-          - task: Bash@3
-            displayName: 'Terraform Init'
-            inputs:
-              targetType: 'inline'
-              addSpnToEnvironment: true
-              workingDirectory: '$(System.DefaultWorkingDirectory)/$(workingDirectory)'
-              script: |
-                echo "=== DEBUG: Terraform Environment Variables ==="
-                echo "ARM_CLIENT_ID: ${ARM_CLIENT_ID:-(empty)}"
-                echo "ARM_TENANT_ID: ${ARM_TENANT_ID:-(empty)}"
-                echo "ARM_SUBSCRIPTION_ID: ${ARM_SUBSCRIPTION_ID:-(empty)}"
-                echo "ARM_USE_OIDC: ${ARM_USE_OIDC:-(empty)}"
-                echo "ARM_OIDC_TOKEN length: ${#ARM_OIDC_TOKEN}"
-                echo "ARM_CLIENT_SECRET length: ${#ARM_CLIENT_SECRET}"
-                echo "ARM_USE_CLI: ${ARM_USE_CLI:-(empty)}"
-                echo "=============================================="
-                
-                terraform init \
-                  -backend-config="resource_group_name=$(BACKEND_RESOURCE_GROUP_NAME)" \
-                  -backend-config="storage_account_name=$(BACKEND_STORAGE_ACCOUNT_NAME)" \
-                  -backend-config="container_name=$(BACKEND_CONTAINER_NAME)" \
-                  -backend-config="key=landing-zone/${{ parameters.projectName }}-${{ parameters.appName }}-${{ parameters.environment }}.tfstate" \
-                  -reconfigure
-            env:
-              ARM_CLIENT_ID: $(auth.ARM_CLIENT_ID)
-              ARM_TENANT_ID: $(auth.ARM_TENANT_ID)
-              ARM_SUBSCRIPTION_ID: $(auth.ARM_SUBSCRIPTION_ID)
-              ARM_USE_OIDC: $(auth.ARM_USE_OIDC)
-              ARM_OIDC_TOKEN: $(auth.ARM_OIDC_TOKEN)
-              ARM_CLIENT_SECRET: $(auth.ARM_CLIENT_SECRET)
-              ARM_USE_CLI: false
+          - template: templates/terraform-init.yml
+            parameters:
+              workingDirectory: '$(workingDirectory)'
+              projectName: '${{ parameters.projectName }}'
+              appName: '${{ parameters.appName }}'
+              environment: '${{ parameters.environment }}'
+              backendResourceGroupName: '$(BACKEND_RESOURCE_GROUP_NAME)'
+              backendStorageAccountName: '$(BACKEND_STORAGE_ACCOUNT_NAME)'
+              backendContainerName: '$(BACKEND_CONTAINER_NAME)'
 
-          - task: Bash@3
-            displayName: 'Terraform Validate'
-            inputs:
-              targetType: 'inline'
-              workingDirectory: '$(System.DefaultWorkingDirectory)/$(workingDirectory)'
-              script: terraform validate
+          - template: templates/terraform-plan.yml
+            parameters:
+              workingDirectory: '$(workingDirectory)'
+              environment: '${{ parameters.environment }}'
 
-          - task: Bash@3
-            displayName: 'Terraform Plan'
-            name: plan
+  - stage: Approval
+    displayName: 'Approval - ${{ parameters.environment }}'
+    dependsOn: Plan
+    condition: and(succeeded(), eq(dependencies.Plan.outputs['TerraformPlan.plan.hasChanges'], 'true'))
+    jobs:
+      - job: WaitForApproval
+        displayName: 'Wait for Manual Approval'
+        pool: server
+        steps:
+          - task: ManualValidation@0
+            displayName: 'Review and Approve Terraform Plan'
             inputs:
-              targetType: 'inline'
-              workingDirectory: '$(System.DefaultWorkingDirectory)/$(workingDirectory)'
-              script: |
-                TFVARS_FILE="${{ parameters.environment }}.tfvars"
-                TFVARS_ARG=$([ -f "$TFVARS_FILE" ] && echo "-var-file=$TFVARS_FILE" || echo "")
-                
-                set +e
-                terraform plan $TFVARS_ARG -out=tfplan -detailed-exitcode
-                EXIT_CODE=$?
-                set -e
-                
-                if [ $EXIT_CODE -eq 0 ]; then
-                  echo "No changes detected"
-                  echo "##vso[task.setvariable variable=hasChanges;isOutput=true]false"
-                elif [ $EXIT_CODE -eq 2 ]; then
-                  echo "Changes detected"
-                  echo "##vso[task.setvariable variable=hasChanges;isOutput=true]true"
-                  terraform show -no-color tfplan
-                else
-                  echo "Plan failed"
-                  exit 1
-                fi
-            env:
-              ARM_CLIENT_ID: $(auth.ARM_CLIENT_ID)
-              ARM_TENANT_ID: $(auth.ARM_TENANT_ID)
-              ARM_SUBSCRIPTION_ID: $(auth.ARM_SUBSCRIPTION_ID)
-              ARM_USE_OIDC: $(auth.ARM_USE_OIDC)
-              ARM_OIDC_TOKEN: $(auth.ARM_OIDC_TOKEN)
-              ARM_CLIENT_SECRET: $(auth.ARM_CLIENT_SECRET)
-              ARM_USE_CLI: false
-
-          - task: ArchiveFiles@2
-            displayName: 'Archive Plan'
-            condition: eq(variables['plan.hasChanges'], 'true')
-            inputs:
-              rootFolderOrFile: '$(System.DefaultWorkingDirectory)/$(workingDirectory)'
-              includeRootFolder: false
-              archiveType: 'tar'
-              tarCompression: 'gz'
-              archiveFile: '$(Build.ArtifactStagingDirectory)/terraform.tar.gz'
-
-          - task: PublishPipelineArtifact@1
-            displayName: 'Publish Plan'
-            condition: eq(variables['plan.hasChanges'], 'true')
-            inputs:
-              targetPath: '$(Build.ArtifactStagingDirectory)'
-              artifact: 'terraform-plan'
+              notifyUsers: ''
+              instructions: 'Please review the Terraform plan output and approve to proceed with apply.'
+              onTimeout: 'reject'
 
   - stage: Apply
     displayName: 'Apply - ${{ parameters.environment }}'
-    dependsOn: Plan
-    condition: and(succeeded(), eq(dependencies.Plan.outputs['TerraformPlan.plan.hasChanges'], 'true'))
+    dependsOn: Approval
+    condition: succeeded()
     jobs:
       - deployment: TerraformApply
         displayName: 'Apply'
@@ -237,82 +146,10 @@ stages:
                   inputs:
                     terraformVersion: '$(terraformVersion)'
 
-                - task: AzureCLI@2
-                  displayName: 'Setup Authentication'
-                  name: auth
-                  inputs:
-                    azureSubscription: '$(serviceConnection)'
-                    scriptType: 'bash'
-                    scriptLocation: 'inlineScript'
-                    addSpnToEnvironment: true
-                    inlineScript: |
-                      echo "=== DEBUG: Authentication Variables ==="
-                      echo "servicePrincipalId: ${servicePrincipalId:-(empty)}"
-                      echo "tenantId: ${tenantId:-(empty)}"
-                      echo "idToken present: $([ -n "$idToken" ] && echo 'YES' || echo 'NO')"
-                      echo "idToken length: ${#idToken}"
-                      echo "servicePrincipalKey present: $([ -n "$servicePrincipalKey" ] && echo 'YES' || echo 'NO')"
-                      echo "servicePrincipalKey length: ${#servicePrincipalKey}"
-                      echo "======================================"
-                      
-                      SUBSCRIPTION_ID=$(az account show --query id -o tsv)
-                      echo "Subscription ID: $SUBSCRIPTION_ID"
-                      
-                      echo "##vso[task.setvariable variable=ARM_CLIENT_ID;isOutput=true]$servicePrincipalId"
-                      echo "##vso[task.setvariable variable=ARM_TENANT_ID;isOutput=true]$tenantId"
-                      echo "##vso[task.setvariable variable=ARM_SUBSCRIPTION_ID;isOutput=true]$SUBSCRIPTION_ID"
-                      
-                      if [ -n "$idToken" ]; then
-                        echo "✓ Using OIDC authentication"
-                        echo "##vso[task.setvariable variable=ARM_USE_OIDC;isOutput=true]true"
-                        echo "##vso[task.setvariable variable=ARM_OIDC_TOKEN;isOutput=true]$idToken"
-                        echo "##vso[task.setvariable variable=ARM_CLIENT_SECRET;isOutput=true]"
-                      else
-                        echo "✗ Using Service Principal authentication (OIDC token not available)"
-                        echo "##[warning]OIDC is not configured - falling back to client secret"
-                        echo "##vso[task.setvariable variable=ARM_USE_OIDC;isOutput=true]false"
-                        echo "##vso[task.setvariable variable=ARM_OIDC_TOKEN;isOutput=true]"
-                        echo "##vso[task.setvariable variable=ARM_CLIENT_SECRET;isOutput=true]$servicePrincipalKey"
-                      fi
+                - template: templates/setup-auth.yml
+                  parameters:
+                    serviceConnection: '$(serviceConnection)'
 
-                - task: Bash@3
-                  displayName: 'Terraform Apply'
-                  inputs:
-                    targetType: 'inline'
-                    workingDirectory: '$(System.DefaultWorkingDirectory)/$(workingDirectory)'
-                    script: |
-                      echo "=== DEBUG: Terraform Environment Variables ==="
-                      echo "ARM_CLIENT_ID: ${ARM_CLIENT_ID:-(empty)}"
-                      echo "ARM_TENANT_ID: ${ARM_TENANT_ID:-(empty)}"
-                      echo "ARM_SUBSCRIPTION_ID: ${ARM_SUBSCRIPTION_ID:-(empty)}"
-                      echo "ARM_USE_OIDC: ${ARM_USE_OIDC:-(empty)}"
-                      echo "ARM_OIDC_TOKEN length: ${#ARM_OIDC_TOKEN}"
-                      echo "ARM_CLIENT_SECRET length: ${#ARM_CLIENT_SECRET}"
-                      echo "ARM_USE_CLI: ${ARM_USE_CLI:-(empty)}"
-                      echo "=============================================="
-                      
-                      terraform apply -auto-approve tfplan
-                  env:
-                    ARM_CLIENT_ID: $(auth.ARM_CLIENT_ID)
-                    ARM_TENANT_ID: $(auth.ARM_TENANT_ID)
-                    ARM_SUBSCRIPTION_ID: $(auth.ARM_SUBSCRIPTION_ID)
-                    ARM_USE_OIDC: $(auth.ARM_USE_OIDC)
-                    ARM_OIDC_TOKEN: $(auth.ARM_OIDC_TOKEN)
-                    ARM_CLIENT_SECRET: $(auth.ARM_CLIENT_SECRET)
-                    ARM_USE_CLI: false
-
-                - task: Bash@3
-                  displayName: 'Show Outputs'
-                  continueOnError: true
-                  inputs:
-                    targetType: 'inline'
-                    workingDirectory: '$(System.DefaultWorkingDirectory)/$(workingDirectory)'
-                    script: terraform output -json
-                  env:
-                    ARM_CLIENT_ID: $(auth.ARM_CLIENT_ID)
-                    ARM_TENANT_ID: $(auth.ARM_TENANT_ID)
-                    ARM_SUBSCRIPTION_ID: $(auth.ARM_SUBSCRIPTION_ID)
-                    ARM_USE_OIDC: $(auth.ARM_USE_OIDC)
-                    ARM_OIDC_TOKEN: $(auth.ARM_OIDC_TOKEN)
-                    ARM_CLIENT_SECRET: $(auth.ARM_CLIENT_SECRET)
-                    ARM_USE_CLI: false
+                - template: templates/terraform-apply.yml
+                  parameters:
+                    workingDirectory: '$(workingDirectory)'
