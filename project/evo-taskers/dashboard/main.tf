@@ -13,6 +13,17 @@ data "terraform_remote_state" "common" {
   }
 }
 
+# Data source to reference shared services (App Service Plans, Function Apps, etc.)
+data "terraform_remote_state" "shared" {
+  backend = "azurerm"
+  config = {
+    resource_group_name  = "rg-evotaskers-state-pmoss"
+    storage_account_name = "stevotaskersstatepoc"
+    container_name       = "tfstate"
+    key                  = "shared/evo-taskers-shared-${var.environment}.tfstate"
+  }
+}
+
 # Local variables
 locals {
   project        = data.terraform_remote_state.common.outputs.project

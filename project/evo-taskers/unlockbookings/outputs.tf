@@ -1,53 +1,79 @@
+# Outputs for UnlockBookings (all environments)
 
-# Function App Outputs
+output "environment" {
+  description = "Current environment (workspace name)"
+  value       = local.environment
+}
+
+# ==============================================================================
+# FUNCTION APP OUTPUTS
+# ==============================================================================
+
 output "function_app_id" {
-  value       = module.function_app.function_app_id
-  description = "The ID of the Function App"
+  description = "The ID of the UnlockBookings Function App"
+  value       = module.function_app.id
 }
 
 output "function_app_name" {
-  value       = module.function_app.function_app_name
-  description = "The name of the Function App"
+  description = "The name of the UnlockBookings Function App"
+  value       = module.function_app.name
 }
 
 output "function_app_default_hostname" {
-  value       = module.function_app.function_app_default_hostname
-  description = "The default hostname of the Function App"
+  description = "The default hostname of the UnlockBookings Function App"
+  value       = module.function_app.default_hostname
 }
 
 output "function_app_url" {
-  value       = "https://${module.function_app.function_app_default_hostname}"
-  description = "The HTTPS URL of the Function App"
+  description = "The HTTPS URL of the UnlockBookings Function App"
+  value       = "https://${module.function_app.default_hostname}"
 }
 
-output "function_app_service_plan_id" {
-  value       = module.function_app.service_plan_id
-  description = "The ID of the Function App Service Plan"
+output "function_app_identity_principal_id" {
+  description = "The principal ID of the UnlockBookings Function App managed identity"
+  value       = module.function_app.identity_principal_id
 }
 
-# Logic App Standard Outputs
+# ==============================================================================
+# LOGIC APP OUTPUTS
+# ==============================================================================
+
 output "logic_app_id" {
-  value       = module.logic_app_standard.logic_app_id
-  description = "The ID of the Logic App"
+  description = "The ID of the UnlockBookings Logic App"
+  value       = module.logic_app_standard.id
 }
 
 output "logic_app_name" {
-  value       = module.logic_app_standard.logic_app_name
-  description = "The name of the Logic App"
+  description = "The name of the UnlockBookings Logic App"
+  value       = module.logic_app_standard.name
 }
 
 output "logic_app_default_hostname" {
-  value       = module.logic_app_standard.logic_app_default_hostname
-  description = "The default hostname of the Logic App"
+  description = "The default hostname of the UnlockBookings Logic App"
+  value       = module.logic_app_standard.default_hostname
 }
 
 output "logic_app_url" {
-  value       = "https://${module.logic_app_standard.logic_app_default_hostname}"
-  description = "The HTTPS URL of the Logic App"
+  description = "The HTTPS URL of the UnlockBookings Logic App"
+  value       = "https://${module.logic_app_standard.default_hostname}"
 }
 
-output "logic_app_service_plan_id" {
-  value       = module.logic_app_standard.service_plan_id
-  description = "The ID of the Logic App Service Plan"
+output "logic_app_identity_principal_id" {
+  description = "The principal ID of the UnlockBookings Logic App managed identity"
+  value       = module.logic_app_standard.identity_principal_id
+}
+
+# ==============================================================================
+# SHARED INFRASTRUCTURE REFERENCES
+# ==============================================================================
+
+output "shared_windows_function_plan_id" {
+  description = "The ID of the shared Windows Function App Service Plan (from shared state)"
+  value       = data.terraform_remote_state.shared.outputs.windows_function_plan_id
+}
+
+output "shared_logic_app_plan_id" {
+  description = "The ID of the shared Logic App Service Plan (from shared state)"
+  value       = data.terraform_remote_state.shared.outputs.logic_app_plan_id
 }
 

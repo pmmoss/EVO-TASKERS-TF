@@ -7,7 +7,6 @@ module "windows_function_app" {
   app_name = var.app_name
   
   # Project configuration from common infrastructure
-  # Environment is automatically derived from workspace name
   project        = local.project
   environment    = local.environment
   location       = local.location
@@ -20,7 +19,7 @@ module "windows_function_app" {
   create_service_plan      = false
   existing_service_plan_id = data.terraform_remote_state.shared.outputs.windows_function_plan_id
   
-  # Always on - depends on the shared plan SKU (not needed as variable)
+  # Always on - depends on the shared plan SKU
   always_on = true  # Shared EP1 plan supports always_on
   
   # Storage account (required for Function Apps)

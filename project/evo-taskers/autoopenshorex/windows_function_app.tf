@@ -1,4 +1,4 @@
-# Windows Function App for AutomatedDataFeed background jobs
+# Windows Function App for AutoOpenShoreX
 
 module "windows_function_app" {
   source = "../../../modules/windows_function_app"
@@ -7,18 +7,20 @@ module "windows_function_app" {
   app_name = var.app_name
   
   # Project configuration from common infrastructure
-  # Environment is automatically derived from workspace name
   project        = local.project
   environment    = local.environment
   location       = local.location
   location_short = local.location_short
   
-  # Resource group
+  # Resource group from common infrastructure
   resource_group_name = data.terraform_remote_state.common.outputs.resource_group_name
   
-  # SKU configuration (Y1 = Consumption, EP1 = Premium, P0v3/P1v3 = Basic/Standard)
-  sku_name  = var.function_app_sku
-  always_on = var.function_app_always_on
+  # App Service Plan - Use shared Windows Function plan from shared services
+  create_service_plan      = false
+  existing_service_plan_id = data.terraform_remote_state.shared.outputs.windows_function_plan_id
+  
+  # Always on - depends on the shared plan SKU
+  always_on = true  # Shared EP1 plan supports always_on
   
   # Storage account (required for Function Apps)
   storage_account_name       = data.terraform_remote_state.common.outputs.storage_account_name
@@ -53,7 +55,7 @@ module "windows_function_app" {
   additional_app_settings = merge(
     var.additional_function_app_settings,
     {
-      "ApplicationName" = "AutomatedDataFeed"
+      "ApplicationName" = "AutoOpenShoreX"
       "Workspace"       = terraform.workspace
     }
   )

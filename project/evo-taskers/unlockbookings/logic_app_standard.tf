@@ -1,5 +1,4 @@
 # Logic App Standard for UnlockBookings workflows
-# Deploys a Logic App Standard with connected identity, storage, and app settings.
 
 module "logic_app_standard" {
   source = "../../../modules/logic_app_standard"
@@ -54,7 +53,7 @@ module "logic_app_standard" {
   additional_app_settings = merge(
     var.additional_logic_app_settings,
     {
-      "ApplicationName" = "UnlockBookings-Workflow"
+      "ApplicationName"       = "UnlockBookings-Workflow"
       "Workflow.Environment" = var.environment
     }
   )
