@@ -9,12 +9,6 @@ terraform {
   }
 
   backend "azurerm" {
-    resource_group_name  = "rg-evotaskers-state-pmoss"
-    storage_account_name = "stevotaskersstatepoc"
-    container_name       = "tfstate"
-    key                  = "shared/evo-taskers-shared-dev.tfstate"
-    # Environment-specific key should be set via backend config file
-    # Example: terraform init -backend-config="key=shared/evo-taskers-shared-prod.tfstate"
   }
 }
 

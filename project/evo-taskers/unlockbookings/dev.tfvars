@@ -14,7 +14,7 @@ app_name    = "unlockbookings"
 # ==============================================================================
 
 # Private endpoint for inbound traffic (recommended for production)
-enable_private_endpoint = false  # Set to true for production
+enable_private_endpoint = true  # Set to true for production
 
 # ==============================================================================
 # LOGIC APP STANDARD CONFIGURATION
