@@ -261,42 +261,11 @@ module "app_insights" {
   version = "~> 0.2.0"
   
   name                = module.naming.application_insights
-  resource_group_name = azurerm_resource_group.this.name
+  resource_group_name = module.log_analytics.resource_group_name
+  workspace_id        = module.log_analytics.id
   location            = local.location
-  
-  # Enable telemetry for AVM (recommended)
+
   enable_telemetry = true
-  
-  # Application type
-  application_type = "web"
-  
-  # Workspace configuration
-  workspace_resource_id = module.log_analytics.id
-  
-  # Security settings
-  public_network_access_enabled = !local.security_settings.enable_private_endpoints
-  
-  # Private endpoint (conditional)
-  private_endpoints = local.security_settings.enable_private_endpoints ? {
-    primary = {
-      name                          = "${module.naming.application_insights}-pe"
-      subnet_resource_id            = module.vnet.subnets["private_endpoints"].id
-      private_dns_zone_resource_ids = [] # Managed externally or by policy
-    }
-  } : {}
-  
-  # Diagnostic settings
-  diagnostic_settings = local.security_settings.enable_diagnostics ? {
-    app_insights_diagnostics = {
-      name                  = "diag-${module.naming.application_insights}"
-      workspace_resource_id = module.log_analytics.id
-      log_groups            = ["allLogs"]
-      metric_categories     = ["AllMetrics"]
-    }
-  } : {}
-  
-  # Tags
-  tags = local.common_tags
 }
 
 module "avm-res-web-serverfarm_function_app_service_plan" {
