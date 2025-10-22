@@ -36,10 +36,6 @@ module "log_analytics" {
   }
   
   # Security settings (managed externally or implicitly)
-  network_acls = {
-    default_action = "Deny"
-    bypass         = "AzureServices"
-  }
   # Private endpoint (conditional)
   private_endpoints = local.security_settings.enable_private_endpoints ? {
     primary = {
@@ -62,7 +58,7 @@ module "vnet" {
   version = "~> 0.15"
   
   name                = module.naming.virtual_network
-  resource_group_name = azurerm_resource_group.this.name
+  parent_id           = azurerm_resource_group.this.id
   location            = local.location
   
   # Enable telemetry for AVM (recommended)
@@ -158,7 +154,6 @@ module "key_vault" {
   
   name                = module.naming.key_vault
   resource_group_name = azurerm_resource_group.this.name
-  parent_id           = azurerm_resource_group.this.id
   tenant_id           = data.azurerm_client_config.current.tenant_id
   location            = local.location
   
@@ -176,21 +171,7 @@ module "key_vault" {
   }
   
   # Access policies (if enabled)
-  access_policy = var.enable_key_vault_access_policy ? {
-    admin_policy = {
-      tenant_id = data.azurerm_client_config.current.tenant_id
-      object_id = var.admin_object_ids[0]
-      key_permissions = [
-        "Get", "List", "Update", "Create", "Import", "Delete", "Recover", "Backup", "Restore"
-      ]
-      secret_permissions = [
-        "Get", "List", "Set", "Delete", "Recover", "Backup", "Restore"
-      ]
-      certificate_permissions = [
-        "Get", "List", "Update", "Create", "Import", "Delete", "Recover", "Backup", "Restore"
-      ]
-    }
-  } : {}
+
   
   # Private endpoint (conditional)
   private_endpoints = local.security_settings.enable_private_endpoints ? {
@@ -256,15 +237,6 @@ module "storage" {
     }
   } : {}
   
-  # Diagnostic settings
-  diagnostic_settings = local.security_settings.enable_diagnostics ? {
-    storage_diagnostics = {
-      name                  = "diag-${module.naming.storage_account}"
-      workspace_resource_id = module.log_analytics.id
-      log_groups            = ["allLogs"]
-      metric_categories     = ["AllMetrics"]
-    }
-  } : {}
   
   # Tags
   tags = local.common_tags
@@ -322,49 +294,6 @@ module "app_insights" {
       metric_categories     = ["AllMetrics"]
     }
   } : {}
-  
-  # Tags
-  tags = local.common_tags
-}
-
-
-# Windows Function App Service Plan
-resource "azurerm_service_plan" "windows_function" {
-  count = var.function_app_service_plan_existing_service_plan_id == null ? 1 : 0
-  
-  name                = "${module.naming.app_service_plan}-${var.function_app_service_plan_name}"
-  resource_group_name = azurerm_resource_group.this.name
-  location            = local.location
-  os_type             = "Windows"
-  sku_name            = var.function_app_service_plan_sku
-  
-  # Tags
-  tags = local.common_tags
-}
-
-# Logic App Service Plan
-resource "azurerm_service_plan" "logic_app" {
-  count = var.logic_app_service_plan_existing_service_plan_id == null ? 1 : 0
-  
-  name                = "${module.naming.app_service_plan}-${var.logic_app_service_plan_name}"
-  resource_group_name = azurerm_resource_group.this.name
-  location            = local.location
-  os_type             = "Windows"
-  sku_name            = var.logic_app_service_plan_sku
-  
-  # Tags
-  tags = local.common_tags
-}
-
-# Linux Web App Service Plan
-resource "azurerm_service_plan" "linux_web_app" {
-  count = var.linux_web_app_service_plan_existing_service_plan_id == null ? 1 : 0
-  
-  name                = "${module.naming.app_service_plan}-${var.linux_web_app_service_plan_name}"
-  resource_group_name = azurerm_resource_group.this.name
-  location            = local.location
-  os_type             = "Linux"
-  sku_name            = var.linux_web_app_service_plan_sku
   
   # Tags
   tags = local.common_tags
