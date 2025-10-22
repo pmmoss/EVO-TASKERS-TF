@@ -258,7 +258,7 @@ resource "azurerm_role_assignment" "umi_storage_blob_contributor" {
 # Application Insights
 module "app_insights" {
   source  = "Azure/avm-res-insights-component/azurerm"
-  version = "~> 0.4"
+  version = "~> 0.2.0"
   
   name                = module.naming.application_insights
   resource_group_name = azurerm_resource_group.this.name
