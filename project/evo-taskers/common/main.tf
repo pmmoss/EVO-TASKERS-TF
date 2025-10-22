@@ -20,7 +20,7 @@ module "naming" {
 # Log Analytics Workspace (created first as it's needed by other resources)
 module "log_analytics" {
   source  = "Azure/avm-res-operationalinsights-workspace/azurerm"
-  version = "~> 0.4"
+  version = "~> 0.2.0"
   
   name                = module.naming.log_analytics_workspace
   resource_group_name = azurerm_resource_group.this.name
@@ -29,13 +29,17 @@ module "log_analytics" {
   # Enable telemetry for AVM (recommended)
   enable_telemetry = true
   
-  # Workspace configuration
-  sku               = "PerGB2018"
-  retention_in_days = 30
+  # Workspace configuration (integrate into azurerm_log_analytics_workspace resource)
+  log_analytics_solution {
+    solution_name = "YourSolutionName"
+    workspace_name = module.naming.log_analytics_workspace
+  }
   
-  # Security settings
-  public_network_access_enabled = !local.security_settings.enable_private_endpoints
-  
+  # Security settings (managed externally or implicitly)
+  network_acls = {
+    default_action = "Deny"
+    bypass         = "AzureServices"
+  }
   # Private endpoint (conditional)
   private_endpoints = local.security_settings.enable_private_endpoints ? {
     primary = {
@@ -154,6 +158,8 @@ module "key_vault" {
   
   name                = module.naming.key_vault
   resource_group_name = azurerm_resource_group.this.name
+  parent_id           = azurerm_resource_group.this.id
+  tenant_id           = data.azurerm_client_config.current.tenant_id
   location            = local.location
   
   # Enable telemetry for AVM (recommended)
@@ -321,39 +327,6 @@ module "app_insights" {
   tags = local.common_tags
 }
 
-
-# Bastion Host (optional)
-module "bastion" {
-  count = var.enable_bastion ? 1 : 0
-  source  = "Azure/avm-res-network-bastionhost/azurerm"
-  version = "~> 0.8"
-  
-  name                = module.naming.bastion_host
-  resource_group_name = azurerm_resource_group.this.name
-  location            = local.location
-  
-  # Enable telemetry for AVM (recommended)
-  enable_telemetry = true
-  
-  # Subnet configuration
-  subnet_resource_id = module.vnet.subnets["bastion"].id
-  
-  # SKU configuration
-  sku = "Standard"
-  
-  # Diagnostic settings
-  diagnostic_settings = local.security_settings.enable_diagnostics ? {
-    bastion_diagnostics = {
-      name                  = "diag-${module.naming.bastion_host}"
-      workspace_resource_id = module.log_analytics.id
-      log_groups            = ["allLogs"]
-      metric_categories     = ["AllMetrics"]
-    }
-  } : {}
-  
-  # Tags
-  tags = local.common_tags
-}
 
 # Windows Function App Service Plan
 resource "azurerm_service_plan" "windows_function" {
