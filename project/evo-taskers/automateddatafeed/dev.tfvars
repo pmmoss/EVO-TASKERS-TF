@@ -1,39 +1,41 @@
-# AutomatedDataFeed Dev Environment Configuration
+# ==============================================================================
+# AUTOMATED DATA FEED - DEVELOPMENT ENVIRONMENT
+# ==============================================================================
 # Apply with: terraform apply -var-file="dev.tfvars"
+# Using Azure Verified Modules (AVM) for secure-by-default configurations
 
-# Environment identifier (required)
+# ==============================================================================
+# BASIC CONFIGURATION
+# ==============================================================================
 environment = "dev"
-app_name = "automateddatafeed"
-######## Web App Service Configuration ########
-app_service_sku       = "P0v3"   # Basic tier for dev
-app_service_always_on = false    # Can be false for dev to save costs
+app_name    = "automateddatafeed"
+
+# ==============================================================================
+# FUNCTION APP CONFIGURATION (AVM Web Site Module)
+# ==============================================================================
+# Function App uses shared Windows Function App Service Plan (EP1)
+# No individual SKU needed - uses shared plan
 
 # Runtime Configuration
-runtime_stack  = "dotnet"
 dotnet_version = "v8.0"
 
-# Health Check
-health_check_path = "/health"
-
-# CORS Configuration
-cors_allowed_origins = [
-  # Add dev-specific origins as needed
-]
-
-# Additional App Settings
-additional_app_settings = {
-  "ENVIRONMENT" = "Development"
-}
-
-######## Function App Configuration ########
-function_app_sku         = "P0v3"  # Basic plan for dev
-function_app_always_on   = false
-functions_worker_runtime = "dotnet"
-
+# Additional Function App Settings
 additional_function_app_settings = {
-  "name" = "AutomatedDataFeed-Functions"
+  "FUNCTIONS_WORKER_RUNTIME" = "dotnet"
+  "FUNCTIONS_EXTENSION_VERSION" = "~4"
+  "WEBSITE_RUN_FROM_PACKAGE" = "1"
+  "ENVIRONMENT" = "Development"
+  "DEBUG_MODE" = "true"
 }
 
-# Network Configuration
+# ==============================================================================
+# NETWORK CONFIGURATION
+# ==============================================================================
 enable_private_endpoint = false # Public access OK for dev
+
+# ==============================================================================
+# MONITORING & DIAGNOSTICS
+# ==============================================================================
+# All monitoring is handled by AVM modules with secure defaults
+# Application Insights integration is automatic via common infrastructure
 

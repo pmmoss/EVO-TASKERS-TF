@@ -1,39 +1,41 @@
-# AutomatedDataFeed QA Environment Configuration
+# ==============================================================================
+# AUTOMATED DATA FEED - QA ENVIRONMENT
+# ==============================================================================
 # Apply with: terraform apply -var-file="qa.tfvars"
+# Using Azure Verified Modules (AVM) for secure-by-default configurations
 
-# Environment identifier (required)
+# ==============================================================================
+# BASIC CONFIGURATION
+# ==============================================================================
 environment = "qa"
-app_name = "automateddatafeed"
-######## Web App Service Configuration ########
-app_service_sku       = "P1v3"   # Standard tier for QA
-app_service_always_on = true     # Enable for QA
+app_name    = "automateddatafeed"
+
+# ==============================================================================
+# FUNCTION APP CONFIGURATION (AVM Web Site Module)
+# ==============================================================================
+# Function App uses shared Windows Function App Service Plan (EP1)
+# No individual SKU needed - uses shared plan
 
 # Runtime Configuration
-runtime_stack  = "dotnet"
 dotnet_version = "v8.0"
 
-# Health Check
-health_check_path = "/health"
-
-# CORS Configuration
-cors_allowed_origins = [
-  # Add QA-specific origins as needed
-]
-
-# Additional App Settings
-additional_app_settings = {
-  "ENVIRONMENT" = "QA"
-}
-
-######## Function App Configuration ########
-function_app_sku         = "P1v3"  # Standard plan for QA
-function_app_always_on   = true
-functions_worker_runtime = "dotnet"
-
+# Additional Function App Settings
 additional_function_app_settings = {
-  "name" = "AutomatedDataFeed-Functions"
+  "FUNCTIONS_WORKER_RUNTIME" = "dotnet"
+  "FUNCTIONS_EXTENSION_VERSION" = "~4"
+  "WEBSITE_RUN_FROM_PACKAGE" = "1"
+  "ENVIRONMENT" = "QA"
+  "DEBUG_MODE" = "false"
 }
 
-# Network Configuration
-enable_private_endpoint = true # Private endpoints in QA
+# ==============================================================================
+# NETWORK CONFIGURATION
+# ==============================================================================
+enable_private_endpoint = true # Private endpoints in QA for security
+
+# ==============================================================================
+# MONITORING & DIAGNOSTICS
+# ==============================================================================
+# All monitoring is handled by AVM modules with secure defaults
+# Application Insights integration is automatic via common infrastructure
 

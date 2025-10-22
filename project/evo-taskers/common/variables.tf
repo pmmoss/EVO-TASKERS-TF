@@ -53,33 +53,60 @@ variable "enable_bastion" {
   default = true
 }
 
-# variable "app_service_os_type" {
-#   type = string
-#   description = "App Service OS type (Linux or Windows)"
-#   default = "Linux"
-#   validation {
-#     condition = contains(["Linux", "Windows"], var.app_service_os_type)
-#     error_message = "App Service OS type must be either Linux or Windows."
-#   }
-# }
+# Service Plan Variables
+variable "function_app_service_plan_name" {
+  type = string
+  description = "Name of the Windows Function App Service Plan"
+  default = "functions-windows"
+}
 
-# variable "app_service_sku" {
-#   type = string
-#   description = "App Service Plan SKU"
-#   default = "B1"
-# }
+variable "function_app_service_plan_sku" {
+  type = string
+  description = "SKU for the Windows Function App Service Plan"
+  default = "EP1"
+}
 
-# variable "app_service_always_on" {
-#   type = bool
-#   description = "Enable always on for App Service"
-#   default = false
-# }
+variable "function_app_service_plan_existing_service_plan_id" {
+  type = string
+  description = "Existing service plan ID to use instead of creating new one"
+  default = null
+}
 
-# variable "app_service_settings" {
-#   type = map(string)
-#   description = "App Service application settings"
-#   default = {}
-# }
+variable "logic_app_service_plan_name" {
+  type = string
+  description = "Name of the Logic App Service Plan"
+  default = "logicapps"
+}
+
+variable "logic_app_service_plan_sku" {
+  type = string
+  description = "SKU for the Logic App Service Plan"
+  default = "WS1"
+}
+
+variable "logic_app_service_plan_existing_service_plan_id" {
+  type = string
+  description = "Existing service plan ID to use instead of creating new one"
+  default = null
+}
+
+variable "linux_web_app_service_plan_name" {
+  type = string
+  description = "Name of the Linux Web App Service Plan"
+  default = "webapp-linux"
+}
+
+variable "linux_web_app_service_plan_sku" {
+  type = string
+  description = "SKU for the Linux Web App Service Plan"
+  default = "S1"
+}
+
+variable "linux_web_app_service_plan_existing_service_plan_id" {
+  type = string
+  description = "Existing service plan ID to use instead of creating new one"
+  default = null
+}
 
 variable "tags" {
   type = map(string)
