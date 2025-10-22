@@ -298,3 +298,23 @@ module "app_insights" {
   # Tags
   tags = local.common_tags
 }
+
+module "avm-res-web-serverfarm_function_app_service_plan" {
+  source  = "Azure/avm-res-web-serverfarm/azurerm//examples/default"
+  version = "0.8.0"
+
+  location            = local.location
+  name                = module.naming.app_service_plan.name_unique
+  os_type             = "Windows"
+  resource_group_name = azurerm_resource_group.this.name  
+}
+
+module "avm-res-web-serverfarm_logic_app_service_plan" {
+  source  = "Azure/avm-res-web-serverfarm/azurerm//examples/default"
+  version = "0.8.0"
+
+  location            = local.location
+  name                = module.naming.app_service_plan.name_unique
+  os_type             = "Windows"
+  resource_group_name = azurerm_resource_group.this.name  
+}
