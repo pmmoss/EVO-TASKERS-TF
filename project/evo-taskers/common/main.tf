@@ -34,7 +34,7 @@ module "log_analytics" {
   private_endpoints = local.security_settings.enable_private_endpoints ? {
     primary = {
       name                          = "${module.naming.log_analytics_workspace}-pe"
-      subnet_resource_id            = module.network.private_endpoints_subnet_id
+      subnet_resource_id            = module.vnet.subnets["private_endpoints"].id
       private_dns_zone_resource_ids = [] # Managed externally or by policy
     }
   } : {}
@@ -59,7 +59,7 @@ module "vnet" {
   enable_telemetry = true
   
   # Address space
-  address_space = [local.vnet_address_space]
+  address_space = local.vnet_address_space
   
   # Subnets
   subnets = {
@@ -260,6 +260,39 @@ module "app_insights" {
   location            = local.location
 
   enable_telemetry = true
+}
+
+# Bastion Host (conditional)
+module "bastion" {
+  count = var.enable_bastion ? 1 : 0
+  
+  source  = "Azure/avm-res-network-bastionhost/azurerm"
+  version = "~> 0.8.1"
+  
+  name                = module.naming.bastion_host
+  resource_group_name = azurerm_resource_group.this.name
+  location            = local.location
+  
+  # Enable telemetry for AVM (recommended)
+  enable_telemetry = true
+  
+  # IP configuration
+  ip_configuration = {
+    subnet_id = module.vnet.subnets["bastion"].id
+  }
+  
+  # Diagnostic settings
+  diagnostic_settings = local.security_settings.enable_diagnostics ? {
+    bastion_diagnostics = {
+      name                  = "diag-${module.naming.bastion_host}"
+      workspace_resource_id = module.log_analytics.id
+      log_groups            = ["allLogs"]
+      metric_categories     = ["AllMetrics"]
+    }
+  } : {}
+  
+  # Tags
+  tags = local.common_tags
 }
 
 module "avm-res-web-serverfarm_function_app_service_plan" {
