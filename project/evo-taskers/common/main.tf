@@ -314,3 +314,13 @@ module "avm-res-web-serverfarm_logic_app_service_plan" {
   os_type             = "Windows"
   resource_group_name = azurerm_resource_group.this.name  
 }
+
+module "avm-res-web-serverfarm_linux_web_app_service_plan" {
+  source  = "Azure/avm-res-web-serverfarm/azurerm"
+  version = "0.8.0"
+
+  location            = local.location
+  name                = module.naming.app_service_plan.name_unique
+  os_type             = "Linux"
+  resource_group_name = azurerm_resource_group.this.name  
+}

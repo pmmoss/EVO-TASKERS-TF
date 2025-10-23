@@ -125,31 +125,31 @@ output "app_insights_connection_string" {
 
 # Service Plans
 output "windows_function_plan_id" {
-  value = var.function_app_service_plan_existing_service_plan_id != null ? var.function_app_service_plan_existing_service_plan_id : azurerm_service_plan.windows_function[0].id
+  value = var.function_app_service_plan_existing_service_plan_id != null ? var.function_app_service_plan_existing_service_plan_id : module.avm-res-web-serverfarm_function_app_service_plan.resource_id
   description = "The ID of the Windows Function App Service Plan"
 }
 
 output "windows_function_plan_name" {
-  value = var.function_app_service_plan_existing_service_plan_id != null ? "existing-plan" : azurerm_service_plan.windows_function[0].name
+  value = var.function_app_service_plan_existing_service_plan_id != null ? "existing-plan" : module.avm-res-web-serverfarm_function_app_service_plan.name
   description = "The name of the Windows Function App Service Plan"
 }
 
 output "logic_app_plan_id" {
-  value = var.logic_app_service_plan_existing_service_plan_id != null ? var.logic_app_service_plan_existing_service_plan_id : azurerm_service_plan.logic_app[0].id
+  value = var.logic_app_service_plan_existing_service_plan_id != null ? var.logic_app_service_plan_existing_service_plan_id : module.avm-res-web-serverfarm_logic_app_service_plan.resource_id
   description = "The ID of the Logic App Service Plan"
 }
 
 output "logic_app_plan_name" {
-  value = var.logic_app_service_plan_existing_service_plan_id != null ? "existing-plan" : azurerm_service_plan.logic_app[0].name
+  value = var.logic_app_service_plan_existing_service_plan_id != null ? "existing-plan" : module.avm-res-web-serverfarm_logic_app_service_plan.name
   description = "The name of the Logic App Service Plan"
 }
 
 output "linux_web_plan_id" {
-  value = var.linux_web_app_service_plan_existing_service_plan_id != null ? var.linux_web_app_service_plan_existing_service_plan_id : azurerm_service_plan.linux_web_app[0].id
+  value = var.linux_web_app_service_plan_existing_service_plan_id != null ? var.linux_web_app_service_plan_existing_service_plan_id : module.avm-res-web-serverfarm_linux_web_app_service_plan.resource_id
   description = "The ID of the Linux Web App Service Plan"
 }
 
 output "linux_web_plan_name" {
-  value = var.linux_web_app_service_plan_existing_service_plan_id != null ? "existing-plan" : azurerm_service_plan.linux_web_app[0].name
+  value = var.linux_web_app_service_plan_existing_service_plan_id != null ? "existing-plan" : module.avm-res-web-serverfarm_linux_web_app_service_plan.name
   description = "The name of the Linux Web App Service Plan"
 }
