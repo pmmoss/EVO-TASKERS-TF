@@ -269,7 +269,7 @@ module "app_insights" {
 }
 
 module "avm-res-web-serverfarm_function_app_service_plan" {
-  source  = "Azure/avm-res-web-serverfarm/azurerm//examples/default"
+  source  = "Azure/avm-res-web-serverfarm/azurerm"
   version = "0.8.0"
 
   location            = local.location
@@ -279,7 +279,7 @@ module "avm-res-web-serverfarm_function_app_service_plan" {
 }
 
 module "avm-res-web-serverfarm_logic_app_service_plan" {
-  source  = "Azure/avm-res-web-serverfarm/azurerm//examples/default"
+  source  = "Azure/avm-res-web-serverfarm/azurerm"
   version = "0.8.0"
 
   location            = local.location
