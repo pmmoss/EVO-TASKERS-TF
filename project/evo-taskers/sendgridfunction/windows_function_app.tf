@@ -3,7 +3,7 @@
 
 module "windows_function_app" {
   source  = "Azure/avm-res-web-site/azurerm"
-  version = "~> 0.19"
+  version = "~> 0.19.1"
   
   # Core configuration
   name                     = "${local.project}-${var.app_name}-${local.environment}-${local.location_short}"

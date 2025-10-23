@@ -30,7 +30,7 @@ locals {
 
 module "function_app" {
   source  = "Azure/avm-res-web-site/azurerm"
-  version = "~> 0.19"
+  version = "~> 0.19.1"
   
   # Core configuration
   name                     = "${local.project}-${var.app_name}-${local.environment}-${local.location_short}"
@@ -132,7 +132,7 @@ module "function_app" {
 
 module "logic_app_standard" {
   source  = "Azure/avm-res-web-site/azurerm"
-  version = "~> 0.19"
+  version = "~> 0.19.1"
   
   # Core configuration - Logic App is a special kind of web site
   name                     = "${local.project}-${var.app_name}-workflow-${local.environment}-${local.location_short}"

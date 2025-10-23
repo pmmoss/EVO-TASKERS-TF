@@ -12,7 +12,7 @@ resource "azurerm_resource_group" "this" {
 
 module "naming" {
   source  = "Azure/naming/azurerm"
-  version = "~> 0.4"
+  version = "~> 0.4.2"
   
   suffix = [local.project, local.environment, local.location_short]
 }
@@ -20,7 +20,7 @@ module "naming" {
 # Log Analytics Workspace (created first as it's needed by other resources)
 module "log_analytics" {
   source  = "Azure/avm-res-operationalinsights-workspace/azurerm"
-  version = "~> 0.2.0"
+  version = "~> 0.4.2"
   
   name                = module.naming.log_analytics_workspace
   resource_group_name = azurerm_resource_group.this.name
@@ -28,12 +28,6 @@ module "log_analytics" {
   
   # Enable telemetry for AVM (recommended)
   enable_telemetry = true
-  
-  # Workspace configuration (integrate into azurerm_log_analytics_workspace resource)
-  log_analytics_solution {
-    solution_name = "YourSolutionName"
-    workspace_name = module.naming.log_analytics_workspace
-  }
   
   # Security settings (managed externally or implicitly)
   # Private endpoint (conditional)
@@ -55,7 +49,7 @@ module "log_analytics" {
 # Virtual Network
 module "vnet" {
   source  = "Azure/avm-res-network-virtualnetwork/azurerm"
-  version = "~> 0.15"
+  version = "~> 0.15.0"
   
   name                = module.naming.virtual_network
   parent_id           = azurerm_resource_group.this.id
@@ -94,7 +88,7 @@ module "vnet" {
 # Network Security Group for App Service Integration subnet
 module "nsg_app_integration" {
   source  = "Azure/avm-res-network-networksecuritygroup/azurerm"
-  version = "~> 0.5"
+  version = "~> 0.5.0"
   
   name                = "${module.naming.network_security_group}-app-integration"
   resource_group_name = azurerm_resource_group.this.name
@@ -150,7 +144,7 @@ resource "azurerm_user_assigned_identity" "workload" {
 # Key Vault
 module "key_vault" {
   source  = "Azure/avm-res-keyvault-vault/azurerm"
-  version = "~> 0.10"
+  version = "~> 0.10.2"
   
   name                = module.naming.key_vault
   resource_group_name = azurerm_resource_group.this.name
@@ -199,7 +193,7 @@ module "key_vault" {
 # Storage Account
 module "storage" {
   source  = "Azure/avm-res-storage-storageaccount/azurerm"
-  version = "~> 0.6"
+  version = "~> 0.6.4"
   
   name                = module.naming.storage_account
   resource_group_name = azurerm_resource_group.this.name
