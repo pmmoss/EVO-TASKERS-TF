@@ -53,6 +53,8 @@ logic_app_service_plan_existing_service_plan_id = null
 # ==============================================================================
 # TAGS
 # ==============================================================================
+
+resource_group_name = "rg-evo-taskers-dev-wus2"
 tags = {
   Environment = "Development"
   Owner       = "Patrick Moss"

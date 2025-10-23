@@ -196,7 +196,7 @@ module "storage" {
   version = "~> 0.6.4"
   
   name                = module.naming.storage_account
-  resource_group_name = azurerm_resource_group.this.name
+  resource_group_name = module.naming.resource_group.name
   location            = local.location
   
   # Enable telemetry for AVM (recommended)
@@ -255,7 +255,7 @@ module "app_insights" {
   version = "~> 0.2.0"
   
   name                = module.naming.application_insights
-  resource_group_name = module.log_analytics.resource_group_name
+  resource_group_name = mod
   workspace_id        = module.log_analytics.resource_id
   location            = local.location
 

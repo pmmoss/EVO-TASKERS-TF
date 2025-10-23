@@ -42,21 +42,5 @@ locals {
     }
   }
   
-  # Security configuration
-  security_settings = {
-    enable_private_endpoints = true
-    enable_public_access    = false
-    enable_rbac            = true
-    enable_diagnostics     = true
-    min_tls_version        = "TLS1_2"
-  }
-  
-  # Diagnostic settings
-  diagnostic_categories = {
-    key_vault = ["AuditEvent"]
-    storage   = ["StorageRead", "StorageWrite", "StorageDelete"]
-    app_insights = ["AppTraces", "AppDependencies", "AppRequests", "AppExceptions"]
-    app_service = ["AppServiceHTTPLogs", "AppServiceConsoleLogs", "AppServiceAppLogs"]
-    log_analytics = ["Audit", "Security"]
-  }
+
 }

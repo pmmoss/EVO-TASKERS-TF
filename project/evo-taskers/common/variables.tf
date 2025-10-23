@@ -17,6 +17,7 @@ variable "location_short" {
   type = string 
   description = "Azure region short name (e.g., wus2)"
 }
+
 variable "vnet_address_space" {
   type = list(string)
   description = "Address space for the VNET"
