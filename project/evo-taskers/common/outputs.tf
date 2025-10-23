@@ -9,7 +9,7 @@ output "resource_group_id" {
 
 # Network
 output "vnet_id" {
-  value = module.vnet.id
+  value = module.vnet.resource_id
 }
 
 output "vnet_name" {
@@ -30,29 +30,29 @@ output "gateway_subnet_id" {
 
 # Log Analytics
 output "log_analytics_workspace_id" {
-  value = module.log_analytics.id
+  value = module.log_analytics.resource_id
 }
 
 output "log_analytics_workspace_name" {
-  value = module.log_analytics.name
+  value = module.log_analytics.resource.name
 }
 
 # Key Vault
 output "key_vault_id" {
-  value = module.key_vault.id
+  value = module.key_vault.resource_id
 }
 
 output "key_vault_uri" {
-  value = module.key_vault.vault_uri
+  value = module.key_vault.uri
 }
 
 # Storage Account
 output "storage_account_id" {
-  value = module.storage.id
+  value = module.storage.resource_id
 }
 
 output "storage_account_name" {
-  value = module.storage.name
+  value = module.storage.resource.name
 }
 
 output "storage_account_primary_access_key" {
@@ -63,7 +63,7 @@ output "storage_account_primary_access_key" {
 
 # Application Insights
 output "app_insights_id" {
-  value = module.app_insights.id
+  value = module.app_insights.resource_id
 }
 
 output "app_insights_instrumentation_key" {
@@ -73,7 +73,7 @@ output "app_insights_instrumentation_key" {
 
 # Bastion
 output "bastion_host_id" {
-  value = var.enable_bastion ? module.bastion[0].id : null
+  value = var.enable_bastion ? module.bastion[0].resource_id : null
 }
 
 output "bastion_public_ip_address" {

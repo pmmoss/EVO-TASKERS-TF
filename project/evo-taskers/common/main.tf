@@ -256,7 +256,7 @@ module "app_insights" {
   
   name                = module.naming.application_insights
   resource_group_name = module.log_analytics.resource_group_name
-  workspace_id        = module.log_analytics.id
+  workspace_id        = module.log_analytics.resource_id
   location            = local.location
 
   enable_telemetry = true
