@@ -2,7 +2,7 @@
 # Backend values provided by pipeline via -backend-config
 
 terraform {
-  required_version = ">=1.2"
+  required_version = ">=1.13"
   
   backend "azurerm" {}
   
