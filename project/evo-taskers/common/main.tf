@@ -68,16 +68,6 @@ module "log_analytics" {
   # Enable telemetry for AVM (recommended)
   enable_telemetry = true
   
-  # Security settings (managed externally or implicitly)
-  # Private endpoint (conditional)
-  private_endpoints = local.security_settings.enable_private_endpoints ? {
-    primary = {
-      name                          = "${module.naming.log_analytics_workspace}-pe"
-      subnet_resource_id            = module.vnet.subnets["private_endpoints"].id
-      private_dns_zone_resource_ids = [] # Managed externally or by policy
-    }
-  } : {}
-  
   # Diagnostic settings (will be configured separately to avoid circular reference)
   diagnostic_settings = {}
   
@@ -255,7 +245,7 @@ module "app_insights" {
   version = "~> 0.2.0"
   
   name                = module.naming.application_insights
-  resource_group_name = mod
+  resource_group_name = azurerm_resource_group.this.name
   workspace_id        = module.log_analytics.resource_id
   location            = local.location
 
