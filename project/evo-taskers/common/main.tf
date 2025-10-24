@@ -164,7 +164,7 @@ module "key_vault" {
       subnet_resource_id            = module.vnet.subnets["private_endpoints"].id
       private_dns_zone_resource_ids = [] # Managed externally or by policy
     }
-  } : {}
+  } :{}
   
   # Diagnostic settings
   diagnostic_settings = var.security_settings.enable_diagnostics ? {
@@ -213,13 +213,13 @@ module "storage" {
   }
   
   # Private endpoint (conditional)
-  private_endpoints = var.security_settings.enable_private_endpoints ? {
+  private_endpoints = {
     primary = {
       name                          = "${module.naming.storage_account}-pe"
       subnet_resource_id            = module.vnet.subnets["private_endpoints"].id
       private_dns_zone_resource_ids = [] # Managed externally or by policy
     }
-  } : {}
+  }
   
   
   # Tags
