@@ -114,3 +114,17 @@ variable "tags" {
   description = "Common tags for all resources"
   default = {}
 }
+
+variable "security_settings" {
+  type = object({
+    enable_private_endpoints = bool
+    enable_public_access    = bool
+    enable_rbac             = bool
+    enable_diagnostics      = bool
+    min_tls_version         = string
+  })
+  description = "Security settings for the landing zone"
+  default = {
+    enable_private_endpoints = true
+  }
+}

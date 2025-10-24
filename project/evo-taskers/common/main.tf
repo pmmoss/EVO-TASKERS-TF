@@ -158,7 +158,7 @@ module "key_vault" {
 
   
   # Private endpoint (conditional)
-  private_endpoints = local.security_settings.enable_private_endpoints ? {
+  private_endpoints = var.security_settings.enable_private_endpoints ? {
     primary = {
       name                          = "${module.naming.key_vault}-pe"
       subnet_resource_id            = module.vnet.subnets["private_endpoints"].id
@@ -167,7 +167,7 @@ module "key_vault" {
   } : {}
   
   # Diagnostic settings
-  diagnostic_settings = local.security_settings.enable_diagnostics ? {
+  diagnostic_settings = var.security_settings.enable_diagnostics ? {
     key_vault_diagnostics = {
       name                  = "diag-${module.log_analytics.name}"
       workspace_resource_id = module.log_analytics.id
@@ -201,7 +201,7 @@ module "storage" {
   public_network_access_enabled = !local.security_settings.enable_private_endpoints
   
   # Network rules
-  network_rules = local.security_settings.enable_private_endpoints ? {
+  network_rules = var.security_settings.enable_private_endpoints ? {
     default_action             = "Deny"
     bypass                     = ["AzureServices"]
     virtual_network_subnet_ids = [
@@ -213,7 +213,7 @@ module "storage" {
   }
   
   # Private endpoint (conditional)
-  private_endpoints = local.security_settings.enable_private_endpoints ? {
+  private_endpoints = var.security_settings.enable_private_endpoints ? {
     primary = {
       name                          = "${module.naming.storage_account}-pe"
       subnet_resource_id            = module.vnet.subnets["private_endpoints"].id
@@ -272,7 +272,7 @@ module "bastion" {
   }
   
   # Diagnostic settings
-  diagnostic_settings = local.security_settings.enable_diagnostics ? {
+  diagnostic_settings = var.security_settings.enable_diagnostics ? {
     bastion_diagnostics = {
       name                  = "diag-${module.naming.bastion_host}"
       workspace_resource_id = module.log_analytics.id
