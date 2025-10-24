@@ -148,7 +148,7 @@ module "key_vault" {
   sku_name = "standard"
   
   # Security settings
-  public_network_access_enabled = !local.security_settings.enable_private_endpoints
+  public_network_access_enabled = !var.security_settings.enable_private_endpoints
   network_acls = {
     default_action = "Deny"
     bypass         = "AzureServices"
