@@ -198,7 +198,7 @@ module "storage" {
   account_kind             = "StorageV2"
   
   # Security settings
-  public_network_access_enabled = !local.security_settings.enable_private_endpoints
+  public_network_access_enabled = !var.security_settings.enable_private_endpoints
   
   # Network rules
   network_rules = var.security_settings.enable_private_endpoints ? {
