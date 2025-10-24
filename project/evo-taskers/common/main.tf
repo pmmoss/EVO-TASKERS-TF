@@ -162,6 +162,7 @@ module "key_vault" {
     primary = {
       name                          = "${module.naming.key_vault}-pe"
       subnet_resource_id            = module.vnet.subnets["private_endpoints"].id
+      subresource_names             = ["vault"]
       private_dns_zone_resource_ids = [] # Managed externally or by policy
     }
   } :{}
@@ -217,6 +218,7 @@ module "storage" {
     primary = {
       name                          = "${module.naming.storage_account}-pe"
       subnet_resource_id            = module.vnet.subnets["private_endpoints"].id
+      subresource_names             = ["blob","table","queue","file"]
       private_dns_zone_resource_ids = [] # Managed externally or by policy
     }
   }
