@@ -126,5 +126,9 @@ variable "security_settings" {
   description = "Security settings for the landing zone"
   default = {
     enable_private_endpoints = true
+    enable_public_access    = false
+    enable_rbac             = true
+    enable_diagnostics      = true
+    min_tls_version         = "TLS1_2"
   }
 }
