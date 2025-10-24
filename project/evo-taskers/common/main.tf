@@ -3,13 +3,6 @@
 # Data sources
 data "azurerm_client_config" "current" {}
 
-# Resource Group
-resource "azurerm_resource_group" "this" {
-  name     = module.naming.resource_group
-  location = var.location
-  tags     = local.common_tags
-}
-
 module "naming" {
   source  = "Azure/naming/azurerm"
   version = "~> 0.4.2"
@@ -17,33 +10,11 @@ module "naming" {
   suffix = [local.project, local.environment, local.location_short]
 }
 
-# Log Analytics Workspace (created first as it's needed by other resources)
-module "log_analytics" {
-  source  = "Azure/avm-res-operationalinsights-workspace/azurerm"
-  version = "~> 0.4.2"
-  
-  name                = module.naming.log_analytics_workspace
-  resource_group_name = azurerm_resource_group.this.name
-  location            = local.location
-  
-  # Enable telemetry for AVM (recommended)
-  enable_telemetry = true
-  
-  # Security settings (managed externally or implicitly)
-  # Private endpoint (conditional)
-  private_endpoints = local.security_settings.enable_private_endpoints ? {
-    primary = {
-      name                          = "${module.naming.log_analytics_workspace}-pe"
-      subnet_resource_id            = module.vnet.subnets["private_endpoints"].id
-      private_dns_zone_resource_ids = [] # Managed externally or by policy
-    }
-  } : {}
-  
-  # Diagnostic settings (will be configured separately to avoid circular reference)
-  diagnostic_settings = {}
-  
-  # Tags
-  tags = local.common_tags
+# Resource Group
+resource "azurerm_resource_group" "this" {
+  name     = module.naming.resource_group
+  location = var.location
+  tags     = local.common_tags
 }
 
 # Virtual Network
@@ -53,7 +24,7 @@ module "vnet" {
   
   name                = module.naming.virtual_network
   parent_id           = azurerm_resource_group.this.id
-  location            = local.location
+  location            = var.location
   
   # Enable telemetry for AVM (recommended)
   enable_telemetry = true
@@ -80,6 +51,35 @@ module "vnet" {
       address_prefixes = [local.subnet_configs.bastion.address_prefix]
     }
   }
+  
+  # Tags
+  tags = local.common_tags
+}
+
+# Log Analytics Workspace (created first as it's needed by other resources)
+module "log_analytics" {
+  source  = "Azure/avm-res-operationalinsights-workspace/azurerm"
+  version = "~> 0.4.2"
+  
+  name                = module.naming.log_analytics_workspace
+  resource_group_name = azurerm_resource_group.this.name
+  location            = var.location
+  
+  # Enable telemetry for AVM (recommended)
+  enable_telemetry = true
+  
+  # Security settings (managed externally or implicitly)
+  # Private endpoint (conditional)
+  private_endpoints = local.security_settings.enable_private_endpoints ? {
+    primary = {
+      name                          = "${module.naming.log_analytics_workspace}-pe"
+      subnet_resource_id            = module.vnet.subnets["private_endpoints"].id
+      private_dns_zone_resource_ids = [] # Managed externally or by policy
+    }
+  } : {}
+  
+  # Diagnostic settings (will be configured separately to avoid circular reference)
+  diagnostic_settings = {}
   
   # Tags
   tags = local.common_tags
@@ -135,7 +135,7 @@ resource "azurerm_subnet_network_security_group_association" "app_integration" {
 
 # User-assigned Managed Identity for workloads
 resource "azurerm_user_assigned_identity" "workload" {
-  name                = "umi-${local.project}-${local.environment}-${local.location_short}"
+  name                = module.naming.user_assigned_identity
   location            = local.location
   resource_group_name = azurerm_resource_group.this.name
   tags                = local.common_tags
@@ -179,7 +179,7 @@ module "key_vault" {
   # Diagnostic settings
   diagnostic_settings = local.security_settings.enable_diagnostics ? {
     key_vault_diagnostics = {
-      name                  = "diag-${module.naming.key_vault}"
+      name                  = "diag-${module.log_analytics.name}"
       workspace_resource_id = module.log_analytics.id
       log_groups            = ["allLogs"]
       metric_categories     = ["AllMetrics"]
@@ -197,7 +197,7 @@ module "storage" {
   
   name                = module.naming.storage_account
   resource_group_name = module.naming.resource_group.name
-  location            = local.location
+  location            = var.location
   
   # Enable telemetry for AVM (recommended)
   enable_telemetry = true

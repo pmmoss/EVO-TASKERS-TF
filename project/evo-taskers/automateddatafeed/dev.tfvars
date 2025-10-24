@@ -31,7 +31,7 @@ additional_function_app_settings = {
 # ==============================================================================
 # NETWORK CONFIGURATION
 # ==============================================================================
-enable_private_endpoint = false # Public access OK for dev
+enable_private_endpoint = true # Public access OK for dev
 
 # ==============================================================================
 # MONITORING & DIAGNOSTICS
