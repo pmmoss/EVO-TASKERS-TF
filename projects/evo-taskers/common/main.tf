@@ -120,7 +120,7 @@ module "nsg_app_integration" {
 # Associate NSG with App Service Integration subnet
 resource "azurerm_subnet_network_security_group_association" "app_integration" {
   subnet_id                 = module.vnet.subnets["app_service_integration"].id
-  network_security_group_id = module.nsg_app_integration.outputs.network_security_group_id
+  network_security_group_id = module.nsg_app_integration.created_nsg_resource
 }
 
 # User-assigned Managed Identity for workloads
@@ -218,8 +218,9 @@ module "storage" {
     primary = {
       name                          = "${module.naming.storage_account}-pe"
       subnet_resource_id            = module.vnet.subnets["private_endpoints"].id
+      
       subresource_names             = ["blob"]
-      private_dns_zone_resource_ids = [] # Managed externally or by policy
+      private_dns_zone_resource_ids = ["/subscriptions/b2c30590-db17-4740-b3c6-6853aab1d9a2/resourceGroups/rg-evo-taskers-dev-wus2/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net"] # Managed externally or by policy
     }
   }
   
@@ -230,7 +231,7 @@ module "storage" {
 
 # RBAC: grant UAMI access to Key Vault and Storage
 resource "azurerm_role_assignment" "umi_kv_secrets_user" {
-  scope                = module.key_vault.outputs.key_vault_id
+  scope                = module.key_vault.created_kv_resource.id
   role_definition_name = "Key Vault Secrets User"
   principal_id         = azurerm_user_assigned_identity.workload.principal_id
 }
