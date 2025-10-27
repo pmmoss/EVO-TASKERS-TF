@@ -120,7 +120,7 @@ module "nsg_app_integration" {
 # Associate NSG with App Service Integration subnet
 resource "azurerm_subnet_network_security_group_association" "app_integration" {
   subnet_id                 = module.vnet.subnets["app_service_integration"].id
-  network_security_group_id = module.nsg_app_integration.created_nsg_resource
+  network_security_group_id = module.nsg_app_integration.created_nsg_resource_id
 }
 
 # User-assigned Managed Identity for workloads
@@ -218,7 +218,7 @@ module "storage" {
     primary = {
       name                          = "${module.naming.storage_account}-pe"
       subnet_resource_id            = module.vnet.subnets["private_endpoints"].id
-      subresource_name             = ["blob"]
+      subresource_name             = "blob"
       private_dns_zone_resource_ids = ["/subscriptions/b2c30590-db17-4740-b3c6-6853aab1d9a2/resourceGroups/rg-evo-taskers-dev-wus2/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net"] # Managed externally or by policy
     }
   }
