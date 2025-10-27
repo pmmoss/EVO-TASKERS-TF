@@ -231,7 +231,7 @@ module "storage" {
 
 # RBAC: grant UAMI access to Key Vault and Storage
 resource "azurerm_role_assignment" "umi_kv_secrets_user" {
-  scope                = module.key_vault.created_kv_resource.id
+  scope                = module.key_vault.created_key_vault_resource
   role_definition_name = "Key Vault Secrets User"
   principal_id         = azurerm_user_assigned_identity.workload.principal_id
 }
