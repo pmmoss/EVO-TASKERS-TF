@@ -120,7 +120,7 @@ module "nsg_app_integration" {
 # Associate NSG with App Service Integration subnet
 resource "azurerm_subnet_network_security_group_association" "app_integration" {
   subnet_id                 = module.vnet.subnets["app_service_integration"].id
-  network_security_group_id = module.nsg_app_integration.id
+  network_security_group_id = module.nsg_app_integration.outputs.network_security_group_id
 }
 
 # User-assigned Managed Identity for workloads
@@ -201,24 +201,24 @@ module "storage" {
   # Security settings
   public_network_access_enabled = !var.security_settings.enable_private_endpoints
   
-  # Network rules
-  network_rules = var.security_settings.enable_private_endpoints ? {
-    default_action             = "Deny"
-    bypass                     = ["AzureServices"]
-    virtual_network_subnet_ids = [
-      module.vnet.subnets["private_endpoints"].id,
-      module.vnet.subnets["app_service_integration"].id
-    ]
-  } : {
-    default_action = "Allow"
-  }
+  # # Network rules
+  # network_rules = var.security_settings.enable_private_endpoints ? {
+  #   default_action             = "Deny"
+  #   bypass                     = ["AzureServices"]
+  #   virtual_network_subnet_ids = [
+  #     module.vnet.subnets["private_endpoints"].id,
+  #     module.vnet.subnets["app_service_integration"].id
+  #   ]
+  # } : {
+  #   default_action = "Allow"
+  # }
   
   # Private endpoint (conditional)
   private_endpoints = {
     primary = {
       name                          = "${module.naming.storage_account}-pe"
       subnet_resource_id            = module.vnet.subnets["private_endpoints"].id
-      subresource_names             = ["blob","table","queue","file"]
+      subresource_names             = ["blob"]
       private_dns_zone_resource_ids = [] # Managed externally or by policy
     }
   }
@@ -230,7 +230,7 @@ module "storage" {
 
 # RBAC: grant UAMI access to Key Vault and Storage
 resource "azurerm_role_assignment" "umi_kv_secrets_user" {
-  scope                = module.key_vault.key_vault_id
+  scope                = module.key_vault.outputs.key_vault_id
   role_definition_name = "Key Vault Secrets User"
   principal_id         = azurerm_user_assigned_identity.workload.principal_id
 }
