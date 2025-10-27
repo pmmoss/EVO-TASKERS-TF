@@ -218,8 +218,7 @@ module "storage" {
     primary = {
       name                          = "${module.naming.storage_account}-pe"
       subnet_resource_id            = module.vnet.subnets["private_endpoints"].id
-      
-      subresource_names             = ["blob"]
+      subresource_name             = ["blob"]
       private_dns_zone_resource_ids = ["/subscriptions/b2c30590-db17-4740-b3c6-6853aab1d9a2/resourceGroups/rg-evo-taskers-dev-wus2/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net"] # Managed externally or by policy
     }
   }
