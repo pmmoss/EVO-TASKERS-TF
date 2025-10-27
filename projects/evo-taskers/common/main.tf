@@ -236,7 +236,7 @@ resource "azurerm_role_assignment" "umi_kv_secrets_user" {
 }
 
 resource "azurerm_role_assignment" "umi_storage_blob_contributor" {
-  scope                = module.storage.storage_account_id
+  scope                = module.storage.resource_id
   role_definition_name = "Storage Blob Data Contributor"
   principal_id         = azurerm_user_assigned_identity.workload.principal_id
 }
