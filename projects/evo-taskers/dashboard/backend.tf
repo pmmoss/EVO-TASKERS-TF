@@ -4,7 +4,12 @@
 terraform {
   required_version = ">=1.2"
   
-  backend "azurerm" {}
+  cloud {
+    organization = "your-hcp-organization"
+    workspaces {
+      name = "evo-taskers-dashboard"
+    }
+  }
   
   required_providers {
     azurerm = {

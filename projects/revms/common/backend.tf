@@ -1,14 +1,14 @@
 # Backend configuration for Landing Zone state
-# This uses a separate state file from application deployments
+# Using HCP Terraform Cloud backend
 
 terraform {
   required_version = ">=1.2"
   
-  backend "azurerm" {
-    # resource_group_name  = "rg-evotaskers-state-pmoss"
-    # storage_account_name = "stevotaskersstatepoc"
-    # container_name       = "tfstate"
-    # key                  = "landing-zone/revms-common.tfstate"
+  cloud {
+    organization = "your-hcp-organization"
+    workspaces {
+      name = "revms-common"
+    }
   }
   
   required_providers {

@@ -1,10 +1,15 @@
 # Backend configuration for AutomatedDataFeed
-# Backend values provided by pipeline via -backend-config
+# Using HCP Terraform Cloud backend
 
 terraform {
   required_version = ">=1.2"
   
-  backend "azurerm" {}
+  cloud {
+    organization = "your-hcp-organization"
+    workspaces {
+      name = "evo-taskers-automateddatafeed"
+    }
+  }
   
   required_providers {
     azurerm = {

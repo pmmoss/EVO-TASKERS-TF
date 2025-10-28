@@ -1,10 +1,15 @@
 # Backend configuration for common infrastructure
-# Backend values provided by pipeline via -backend-config
+# Using HCP Terraform Cloud backend
 
 terraform {
   required_version = ">=1.13"
   
-  backend "azurerm" {}
+  cloud {
+    organization = ""
+    workspaces {
+      name = "evo-taskers-common"
+    }
+  }
   
   required_providers {
     azurerm = {
