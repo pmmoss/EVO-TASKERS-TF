@@ -12,7 +12,7 @@ module "naming" {
 
 # Resource Group
 resource "azurerm_resource_group" "this" {
-  name     = module.naming.resource_group
+  name     = module.naming.resource_group.name
   location = var.location
   tags     = local.common_tags
 }
@@ -22,7 +22,7 @@ module "vnet" {
   source  = "Azure/avm-res-network-virtualnetwork/azurerm"
   version = "~> 0.15.0"
   
-  name                = module.naming.virtual_network
+  name                = module.naming.virtual_network.name
   parent_id           = azurerm_resource_group.this.id
   location            = var.location
   
@@ -61,7 +61,7 @@ module "log_analytics" {
   source  = "Azure/avm-res-operationalinsights-workspace/azurerm"
   version = "~> 0.4.2"
   
-  name                = module.naming.log_analytics_workspace
+  name                = module.naming.log_analytics_workspace.name
   resource_group_name = azurerm_resource_group.this.name
   location            = var.location
   
@@ -80,7 +80,7 @@ module "nsg_app_integration" {
   source  = "Azure/avm-res-network-networksecuritygroup/azurerm"
   version = "~> 0.5.0"
   
-  name                = "${module.naming.network_security_group}-app-integration"
+  name                = "${module.naming.network_security_group.name}-app-integration"
   resource_group_name = azurerm_resource_group.this.name
   location            = local.location
   
@@ -125,7 +125,7 @@ resource "azurerm_subnet_network_security_group_association" "app_integration" {
 
 # User-assigned Managed Identity for workloads
 resource "azurerm_user_assigned_identity" "workload" {
-  name                = module.naming.user_assigned_identity
+  name                = module.naming.user_assigned_identity.name
   location            = local.location
   resource_group_name = azurerm_resource_group.this.name
   tags                = local.common_tags
@@ -136,7 +136,7 @@ module "key_vault" {
   source  = "Azure/avm-res-keyvault-vault/azurerm"
   version = "~> 0.10.2"
   
-  name                = module.naming.key_vault
+  name                = module.naming.key_vault.name
   resource_group_name = azurerm_resource_group.this.name
   tenant_id           = data.azurerm_client_config.current.tenant_id
   location            = local.location
@@ -160,7 +160,7 @@ module "key_vault" {
   # Private endpoint (conditional)
   private_endpoints = var.security_settings.enable_private_endpoints ? {
     primary = {
-      name                          = "${module.naming.key_vault}-pe"
+      name                          = "${module.naming.key_vault.name}-pe"
       subnet_resource_id            = module.vnet.subnets["private_endpoints"].id
       subresource_names             = ["vault"]
       private_dns_zone_resource_ids = [] # Managed externally or by policy
@@ -186,8 +186,8 @@ module "storage" {
   source  = "Azure/avm-res-storage-storageaccount/azurerm"
   version = "~> 0.6.4"
   
-  name                = module.naming.storage_account
-  resource_group_name = module.naming.resource_group.name
+  name                = module.naming.storage_account.name
+  resource_group_name = azurerm_resource_group.this.name
   location            = var.location
   
   # Enable telemetry for AVM (recommended)
@@ -216,7 +216,7 @@ module "storage" {
   # Private endpoint (conditional)
   private_endpoints = {
     primary = {
-      name                          = "${module.naming.storage_account}-pe"
+      name                          = "${module.naming.storage_account.name}-pe"
       subnet_resource_id            = module.vnet.subnets["private_endpoints"].id
       subresource_name             = "blob"
       private_dns_zone_resource_ids = ["/subscriptions/b2c30590-db17-4740-b3c6-6853aab1d9a2/resourceGroups/rg-evo-taskers-dev-wus2/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net"] # Managed externally or by policy
@@ -246,7 +246,7 @@ module "app_insights" {
   source  = "Azure/avm-res-insights-component/azurerm"
   version = "~> 0.2.0"
   
-  name                = module.naming.application_insights
+  name                = module.naming.application_insights.name
   resource_group_name = azurerm_resource_group.this.name
   workspace_id        = module.log_analytics.resource_id
   location            = local.location
@@ -261,7 +261,7 @@ module "bastion" {
   source  = "Azure/avm-res-network-bastionhost/azurerm"
   version = "~> 0.8.1"
   
-  name                = module.naming.bastion_host
+  name                = module.naming.bastion_host.name
   resource_group_name = azurerm_resource_group.this.name
   location            = local.location
   
@@ -276,7 +276,7 @@ module "bastion" {
   # Diagnostic settings
   diagnostic_settings = var.security_settings.enable_diagnostics ? {
     bastion_diagnostics = {
-      name                  = "diag-${module.naming.bastion_host}"
+      name                  = "diag-${module.naming.bastion_host.name}"
       workspace_resource_id = module.log_analytics.id
       log_groups            = ["allLogs"]
       metric_categories     = ["AllMetrics"]
