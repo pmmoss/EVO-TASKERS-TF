@@ -120,7 +120,7 @@ module "nsg_app_integration" {
 # Associate NSG with App Service Integration subnet
 resource "azurerm_subnet_network_security_group_association" "app_integration" {
   subnet_id                 = module.vnet.subnets["app_service_integration"].id
-  network_security_group_id = module.nsg_app_integration.created_nsg_resource_id
+  network_security_group_id = module.nsg_app_integration.resource_id
 }
 
 # User-assigned Managed Identity for workloads
@@ -230,7 +230,7 @@ module "storage" {
 
 # RBAC: grant UAMI access to Key Vault and Storage
 resource "azurerm_role_assignment" "umi_kv_secrets_user" {
-  scope                = module.key_vault.created_key_vault_resource
+  scope                = module.key_vault.resource_id
   role_definition_name = "Key Vault Secrets User"
   principal_id         = azurerm_user_assigned_identity.workload.principal_id
 }
