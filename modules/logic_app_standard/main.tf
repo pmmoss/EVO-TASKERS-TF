@@ -157,9 +157,8 @@ resource "azurerm_monitor_diagnostic_setting" "logic_app" {
     category = "WorkflowRuntime"
   }
 
-  metric {
+  enabled_metric {
     category = "AllMetrics"
-    enabled  = true
   }
 }
 
